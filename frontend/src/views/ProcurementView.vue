@@ -62,7 +62,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="line in filteredPurchases" :key="line.id">
+            <tr v-for="line in paginatedPurchases" :key="line.id">
               <td>{{ line.id }}</td>
               <td>{{ line.supplier }}</td>
               <td>{{ line.fruit }}</td>
@@ -89,6 +89,10 @@
             </tr>
           </tbody>
         </table>
+        <PaginationControl
+          v-model:currentPage="purchasePage"
+          :totalPages="purchaseTotalPages"
+        />
       </div>
     </div>
 
@@ -155,7 +159,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="item in shipments" :key="item.id">
+            <tr v-for="item in paginatedShipments" :key="item.id">
               <td>{{ item.id }}</td>
               <td>{{ item.poId }}</td>
               <td>{{ item.acceptedKg }}/{{ item.quantityKg }}kg</td>
@@ -174,6 +178,10 @@
             </tr>
           </tbody>
         </table>
+        <PaginationControl
+          v-model:currentPage="shipmentPage"
+          :totalPages="shipmentTotalPages"
+        />
       </div>
       <div class="panel">
         <div class="panel__header">
@@ -192,7 +200,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="invoice in invoices" :key="invoice.id">
+            <tr v-for="invoice in paginatedInvoices" :key="invoice.id">
               <td>{{ invoice.id }}</td>
               <td>{{ invoice.poId }}</td>
               <td>{{ formatCurrency(invoice.amount) }}</td>
@@ -219,6 +227,10 @@
             </tr>
           </tbody>
         </table>
+        <PaginationControl
+          v-model:currentPage="invoicePage"
+          :totalPages="invoiceTotalPages"
+        />
       </div>
     </section>
 
@@ -244,6 +256,7 @@
 import { computed, reactive, ref, watch } from "vue";
 import { storeToRefs } from "pinia";
 import PurchaseForm from "../components/forms/PurchaseForm.vue";
+import PaginationControl from "../components/ui/PaginationControl.vue";
 import { useInventoryStore } from "../stores/useInventoryStore";
 import { useAuthStore } from "../stores/useAuthStore";
 import { useEnterpriseStore } from "../stores/useEnterpriseStore";
@@ -256,6 +269,31 @@ const enterprise = useEnterpriseStore();
 const { purchases, payables, loading, error } = storeToRefs(store);
 const { purchaseOrders: advancedOrders, shipments, invoices, approvalFlows } = storeToRefs(enterprise);
 const { notifySuccess, notifyError } = useToastBus();
+
+const purchasePage = ref(1);
+const shipmentPage = ref(1);
+const invoicePage = ref(1);
+const pageSize = 10;
+const panelPageSize = 5;
+
+const purchaseTotalPages = computed(() => Math.ceil(filteredPurchases.value.length / pageSize));
+const shipmentTotalPages = computed(() => Math.ceil(shipments.value.length / panelPageSize));
+const invoiceTotalPages = computed(() => Math.ceil(invoices.value.length / panelPageSize));
+
+const paginatedPurchases = computed(() => {
+  const start = (purchasePage.value - 1) * pageSize;
+  return filteredPurchases.value.slice(start, start + pageSize);
+});
+
+const paginatedShipments = computed(() => {
+  const start = (shipmentPage.value - 1) * panelPageSize;
+  return shipments.value.slice(start, start + panelPageSize);
+});
+
+const paginatedInvoices = computed(() => {
+  const start = (invoicePage.value - 1) * panelPageSize;
+  return invoices.value.slice(start, start + panelPageSize);
+});
 
 const keyword = ref("");
 const paymentFilter = ref<PaymentMethod | "all">("all");

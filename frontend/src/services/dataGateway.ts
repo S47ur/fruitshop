@@ -355,6 +355,12 @@ export const dataGateway = {
           .updateParameter(key, value)
           .then((param) => mapParameterToRemote(param ?? { key, label: key, value, description: "" }, key, value))
     );
+  },
+  fetchEnterpriseSnapshot() {
+    return handleHttp<any>(
+      () => httpClient!.get<ApiEnvelope<any>>("/enterprise/snapshot"),
+      () => mockBackend.getEnterpriseSnapshot()
+    );
   }
 };
 

@@ -119,7 +119,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="invoice in invoices" :key="invoice.id">
+            <tr v-for="invoice in paginatedInvoices" :key="invoice.id">
               <td>{{ invoice.id }}</td>
               <td>{{ invoice.poId }}</td>
               <td>{{ formatCurrency(invoice.amount) }}</td>
@@ -153,6 +153,10 @@
             </tr>
           </tbody>
         </table>
+        <PaginationControl
+          v-model:currentPage="invoicePage"
+          :totalPages="invoiceTotalPages"
+        />
       </div>
 
       <div class="panel">
@@ -169,7 +173,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="bucket in agingBuckets" :key="bucket.bucket">
+            <tr v-for="bucket in paginatedAging" :key="bucket.bucket">
               <td>{{ bucket.bucket }}</td>
               <td>{{ formatCurrency(bucket.receivables) }}</td>
               <td>{{ formatCurrency(bucket.payables) }}</td>
@@ -179,6 +183,10 @@
             </tr>
           </tbody>
         </table>
+        <PaginationControl
+          v-model:currentPage="agingPage"
+          :totalPages="agingTotalPages"
+        />
       </div>
 
       <div class="panel">
@@ -196,7 +204,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="entry in cashForecast" :key="entry.date">
+            <tr v-for="entry in paginatedForecast" :key="entry.date">
               <td>{{ entry.date }}</td>
               <td>{{ formatCurrency(entry.inflow) }}</td>
               <td>{{ formatCurrency(entry.outflow) }}</td>
@@ -207,6 +215,10 @@
             </tr>
           </tbody>
         </table>
+        <PaginationControl
+          v-model:currentPage="forecastPage"
+          :totalPages="forecastTotalPages"
+        />
       </div>
     </section>
   </section>
@@ -216,6 +228,7 @@
 import { computed, reactive, ref, watch } from "vue";
 import { storeToRefs } from "pinia";
 import PaymentBreakdown from "../components/tables/PaymentBreakdown.vue";
+import PaginationControl from "../components/ui/PaginationControl.vue";
 import { useInventoryStore } from "../stores/useInventoryStore";
 import { useAuthStore } from "../stores/useAuthStore";
 import { useEnterpriseStore } from "../stores/useEnterpriseStore";
@@ -238,6 +251,30 @@ type RemoteInvoice = Awaited<ReturnType<typeof dataGateway.listInvoices>> extend
 const invoices = ref<PurchaseInvoice[]>([]);
 const invoicesLoading = ref(false);
 const invoicesError = ref<string | null>(null);
+
+const invoicePage = ref(1);
+const agingPage = ref(1);
+const forecastPage = ref(1);
+const panelPageSize = 5;
+
+const invoiceTotalPages = computed(() => Math.ceil(invoices.value.length / panelPageSize));
+const agingTotalPages = computed(() => Math.ceil(agingBuckets.value.length / panelPageSize));
+const forecastTotalPages = computed(() => Math.ceil(cashForecast.value.length / panelPageSize));
+
+const paginatedInvoices = computed(() => {
+  const start = (invoicePage.value - 1) * panelPageSize;
+  return invoices.value.slice(start, start + panelPageSize);
+});
+
+const paginatedAging = computed(() => {
+  const start = (agingPage.value - 1) * panelPageSize;
+  return agingBuckets.value.slice(start, start + panelPageSize);
+});
+
+const paginatedForecast = computed(() => {
+  const start = (forecastPage.value - 1) * panelPageSize;
+  return cashForecast.value.slice(start, start + panelPageSize);
+});
 
 const pendingSales = computed(() => sales.value.filter((item) => item.status === "pending").slice(0, 5));
 const pendingPurchases = computed(() => purchases.value.filter((item) => item.status === "pending").slice(0, 5));

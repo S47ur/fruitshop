@@ -173,6 +173,35 @@ export const useEnterpriseStore = defineStore("enterprise", () => {
   const users = ref<UserAccount[]>(snapshot.users);
   const loading = ref(false);
 
+  const initialize = async () => {
+    loading.value = true;
+    try {
+      const data = await dataGateway.fetchEnterpriseSnapshot();
+      if (data) {
+        products.value = data.products ?? [];
+        partners.value = data.partners ?? [];
+        roleMatrix.value = data.roleMatrix ?? [];
+        approvalFlows.value = data.approvalFlows ?? [];
+        integrations.value = data.integrations ?? [];
+        automations.value = data.automations ?? [];
+        auditLogs.value = data.auditLogs ?? [];
+        parameters.value = data.parameters ?? [];
+        // Merge other fields if needed, or just use what's available
+        if (data.users) users.value = data.users;
+        if (data.invoices) invoices.value = data.invoices;
+        if (data.quotes) quotes.value = data.quotes;
+        if (data.adjustments) adjustments.value = data.adjustments;
+      }
+    } catch (err) {
+      console.warn("Failed to load enterprise snapshot from backend, using local/default", err);
+    } finally {
+      loading.value = false;
+    }
+  };
+
+  // Call initialize on store setup
+  initialize();
+
   const persist = () => {
     if (typeof window === "undefined") return;
     const payload: EnterpriseSnapshot = {
@@ -468,6 +497,7 @@ export const useEnterpriseStore = defineStore("enterprise", () => {
     toggleAutomation,
     updateParameter,
     simulateForecast,
-    updateUserRole
+    updateUserRole,
+    loadEnterpriseData: initialize
   };
 });

@@ -76,7 +76,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="item in products" :key="item.id">
+            <tr v-for="item in paginatedProducts" :key="item.id">
               <td>
                 <strong>{{ item.name }}</strong>
                 <small>{{ item.spec }}</small>
@@ -99,6 +99,10 @@
             </tr>
           </tbody>
         </table>
+        <PaginationControl
+          v-model:currentPage="productPage"
+          :totalPages="productTotalPages"
+        />
       </div>
     </div>
 
@@ -143,7 +147,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="partner in partners" :key="partner.id">
+            <tr v-for="partner in paginatedPartners" :key="partner.id">
               <td>
                 <strong>{{ partner.name }}</strong>
                 <small>{{ partner.historyNotes }}</small>
@@ -160,6 +164,10 @@
             </tr>
           </tbody>
         </table>
+        <PaginationControl
+          v-model:currentPage="partnerPage"
+          :totalPages="partnerTotalPages"
+        />
       </div>
     </div>
 
@@ -189,7 +197,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="warehouse in warehouses" :key="warehouse.id">
+            <tr v-for="warehouse in paginatedWarehouses" :key="warehouse.id">
               <td><strong>{{ warehouse.name }}</strong><small>{{ warehouse.code }}</small></td>
               <td>{{ warehouse.city }}</td>
               <td>{{ warehouse.temperatureControl ? '是' : '否' }}</td>
@@ -205,14 +213,19 @@
             </tr>
           </tbody>
         </table>
+        <PaginationControl
+          v-model:currentPage="warehousePage"
+          :totalPages="warehouseTotalPages"
+        />
       </div>
     </div>
   </section>
 </template>
 
 <script setup lang="ts">
-import { reactive, ref } from "vue";
+import { computed, reactive, ref } from "vue";
 import { storeToRefs } from "pinia";
+import PaginationControl from "../components/ui/PaginationControl.vue";
 import { useEnterpriseStore } from "../stores/useEnterpriseStore";
 import { useToastBus } from "../composables/useToastBus";
 import type { PaymentMethod } from "../stores/types";
@@ -231,6 +244,30 @@ const {
 const { notifySuccess, notifyError, notifyInfo } = useToastBus();
 
 const activeTab = ref<"products" | "partners" | "warehouses">("products");
+
+const productPage = ref(1);
+const partnerPage = ref(1);
+const warehousePage = ref(1);
+const pageSize = 10;
+
+const productTotalPages = computed(() => Math.ceil(products.value.length / pageSize));
+const partnerTotalPages = computed(() => Math.ceil(partners.value.length / pageSize));
+const warehouseTotalPages = computed(() => Math.ceil(warehouses.value.length / pageSize));
+
+const paginatedProducts = computed(() => {
+  const start = (productPage.value - 1) * pageSize;
+  return products.value.slice(start, start + pageSize);
+});
+
+const paginatedPartners = computed(() => {
+  const start = (partnerPage.value - 1) * pageSize;
+  return partners.value.slice(start, start + pageSize);
+});
+
+const paginatedWarehouses = computed(() => {
+  const start = (warehousePage.value - 1) * pageSize;
+  return warehouses.value.slice(start, start + pageSize);
+});
 
 const productForm = reactive({
   name: "",

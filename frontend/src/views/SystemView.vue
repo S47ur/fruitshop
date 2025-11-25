@@ -29,7 +29,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="user in users" :key="user.id">
+            <tr v-for="user in paginatedUsers" :key="user.id">
               <td>{{ user.username }}</td>
               <td>{{ user.name }}</td>
               <td>{{ user.email }}</td>
@@ -50,6 +50,10 @@
             </tr>
           </tbody>
         </table>
+        <PaginationControl
+          v-model:currentPage="userPage"
+          :totalPages="userTotalPages"
+        />
       </div>
 
       <div class="panel wide">
@@ -192,7 +196,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="log in auditLogs" :key="log.id">
+            <tr v-for="log in paginatedLogs" :key="log.id">
               <td>{{ formatTime(log.at) }}</td>
               <td>{{ log.actor }}</td>
               <td>{{ log.action }}</td>
@@ -204,14 +208,19 @@
             </tr>
           </tbody>
         </table>
+        <PaginationControl
+          v-model:currentPage="logPage"
+          :totalPages="logTotalPages"
+        />
       </div>
     </div>
   </section>
 </template>
 
 <script setup lang="ts">
-import { computed, reactive, watch } from "vue";
+import { computed, reactive, ref, watch } from "vue";
 import { storeToRefs } from "pinia";
+import PaginationControl from "../components/ui/PaginationControl.vue";
 import { useEnterpriseStore } from "../stores/useEnterpriseStore";
 import { useAuthStore } from "../stores/useAuthStore";
 import { useToastBus } from "../composables/useToastBus";
@@ -225,6 +234,23 @@ const { notifySuccess, notifyError } = useToastBus();
 const canManageSystem = computed(() => auth.hasPermission("system.manage"));
 
 const editableParams = reactive<Record<string, string>>({});
+
+const userPage = ref(1);
+const logPage = ref(1);
+const pageSize = 10;
+
+const userTotalPages = computed(() => Math.ceil(users.value.length / pageSize));
+const logTotalPages = computed(() => Math.ceil(auditLogs.value.length / pageSize));
+
+const paginatedUsers = computed(() => {
+  const start = (userPage.value - 1) * pageSize;
+  return users.value.slice(start, start + pageSize);
+});
+
+const paginatedLogs = computed(() => {
+  const start = (logPage.value - 1) * pageSize;
+  return auditLogs.value.slice(start, start + pageSize);
+});
 
 watch(
   parameters,

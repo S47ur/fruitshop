@@ -19,7 +19,7 @@
         </tr>
       </thead>
       <tbody>
-        <tr v-for="item in safeInventory" :key="item.id ?? item.fruit">
+        <tr v-for="item in paginatedInventory" :key="item.id ?? item.fruit">
           <td>{{ item.fruit }}</td>
           <td>{{ formatNumber(item.onHandKg) }}</td>
           <td>{{ formatCurrency(item.unitCost) }}</td>
@@ -33,19 +33,34 @@
         </tr>
       </tbody>
     </table>
+    <PaginationControl
+      v-model:currentPage="currentPage"
+      :totalPages="totalPages"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, ref } from "vue";
 import { storeToRefs } from "pinia";
 import { useInventoryStore } from "../../stores/useInventoryStore";
+import PaginationControl from "../ui/PaginationControl.vue";
 import type { InventoryItem } from "../../stores/types";
 
 const store = useInventoryStore();
 const { inventory } = storeToRefs(store);
 
+const currentPage = ref(1);
+const pageSize = 10;
+
 const safeInventory = computed<InventoryItem[]>(() => inventory.value ?? []);
+
+const totalPages = computed(() => Math.ceil(safeInventory.value.length / pageSize));
+
+const paginatedInventory = computed(() => {
+  const start = (currentPage.value - 1) * pageSize;
+  return safeInventory.value.slice(start, start + pageSize);
+});
 
 const toNumber = (value: unknown) => {
   if (typeof value === "number" && Number.isFinite(value)) return value;

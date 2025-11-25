@@ -67,7 +67,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="line in filteredSales" :key="line.id">
+            <tr v-for="line in paginatedSales" :key="line.id">
               <td>{{ line.id }}</td>
               <td>{{ line.customer }}</td>
               <td>{{ line.fruit }}</td>
@@ -94,6 +94,10 @@
             </tr>
           </tbody>
         </table>
+        <PaginationControl
+          v-model:currentPage="salesPage"
+          :totalPages="salesTotalPages"
+        />
       </div>
     </div>
 
@@ -115,7 +119,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="quote in quotes" :key="quote.id">
+            <tr v-for="quote in paginatedQuotes" :key="quote.id">
               <td>{{ quote.id }}</td>
               <td>{{ customerName(quote.customerId) }}</td>
               <td>{{ quote.validFrom }} ~ {{ quote.validTo }}</td>
@@ -156,6 +160,10 @@
             </tr>
           </tbody>
         </table>
+        <PaginationControl
+          v-model:currentPage="quotePage"
+          :totalPages="quoteTotalPages"
+        />
       </div>
 
       <div class="panel">
@@ -175,7 +183,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="contract in contracts" :key="contract.id">
+            <tr v-for="contract in paginatedContracts" :key="contract.id">
               <td>{{ contract.id }}</td>
               <td>{{ customerName(contract.customerId) }}</td>
               <td>{{ contract.channel }}</td>
@@ -188,6 +196,10 @@
             </tr>
           </tbody>
         </table>
+        <PaginationControl
+          v-model:currentPage="contractPage"
+          :totalPages="contractTotalPages"
+        />
       </div>
 
       <div class="panel">
@@ -207,7 +219,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="promo in promotions" :key="promo.id">
+            <tr v-for="promo in paginatedPromotions" :key="promo.id">
               <td>{{ promo.name }}</td>
               <td>{{ promo.type }}</td>
               <td>{{ promo.scope.join("、") }}</td>
@@ -228,6 +240,10 @@
             </tr>
           </tbody>
         </table>
+        <PaginationControl
+          v-model:currentPage="promotionPage"
+          :totalPages="promotionTotalPages"
+        />
       </div>
 
       <div class="panel">
@@ -245,7 +261,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="channel in channelConfigs" :key="channel.id">
+            <tr v-for="channel in paginatedChannels" :key="channel.id">
               <td>{{ channel.name }}</td>
               <td>{{ channel.settlementDays }}</td>
               <td>{{ formatPercent(channel.feeRate) }}</td>
@@ -256,6 +272,10 @@
             </tr>
           </tbody>
         </table>
+        <PaginationControl
+          v-model:currentPage="channelPage"
+          :totalPages="channelTotalPages"
+        />
       </div>
     </section>
   </section>
@@ -265,6 +285,7 @@
 import { computed, ref, watch } from "vue";
 import { storeToRefs } from "pinia";
 import SalesForm from "../components/forms/SalesForm.vue";
+import PaginationControl from "../components/ui/PaginationControl.vue";
 import { useInventoryStore } from "../stores/useInventoryStore";
 import { useAuthStore } from "../stores/useAuthStore";
 import { useEnterpriseStore } from "../stores/useEnterpriseStore";
@@ -278,6 +299,45 @@ const enterprise = useEnterpriseStore();
 const { sales, receivables, loading, error } = storeToRefs(store);
 const { contracts, promotions, channelConfigs, partners, quotes: enterpriseQuotes } = storeToRefs(enterprise);
 const { notifySuccess, notifyError } = useToastBus();
+
+const salesPage = ref(1);
+const quotePage = ref(1);
+const contractPage = ref(1);
+const promotionPage = ref(1);
+const channelPage = ref(1);
+const pageSize = 10;
+const panelPageSize = 5;
+
+const salesTotalPages = computed(() => Math.ceil(filteredSales.value.length / pageSize));
+const quoteTotalPages = computed(() => Math.ceil(quotes.value.length / panelPageSize));
+const contractTotalPages = computed(() => Math.ceil(contracts.value.length / panelPageSize));
+const promotionTotalPages = computed(() => Math.ceil(promotions.value.length / panelPageSize));
+const channelTotalPages = computed(() => Math.ceil(channelConfigs.value.length / panelPageSize));
+
+const paginatedSales = computed(() => {
+  const start = (salesPage.value - 1) * pageSize;
+  return filteredSales.value.slice(start, start + pageSize);
+});
+
+const paginatedQuotes = computed(() => {
+  const start = (quotePage.value - 1) * panelPageSize;
+  return quotes.value.slice(start, start + panelPageSize);
+});
+
+const paginatedContracts = computed(() => {
+  const start = (contractPage.value - 1) * panelPageSize;
+  return contracts.value.slice(start, start + panelPageSize);
+});
+
+const paginatedPromotions = computed(() => {
+  const start = (promotionPage.value - 1) * panelPageSize;
+  return promotions.value.slice(start, start + panelPageSize);
+});
+
+const paginatedChannels = computed(() => {
+  const start = (channelPage.value - 1) * panelPageSize;
+  return channelConfigs.value.slice(start, start + panelPageSize);
+});
 
 const keyword = ref("");
 const paymentFilter = ref<PaymentMethod | "all">("all");

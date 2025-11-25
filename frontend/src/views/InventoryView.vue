@@ -98,7 +98,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="batch in batches" :key="batch.id">
+            <tr v-for="batch in paginatedBatches" :key="batch.id">
               <td>{{ batch.lotNo }}</td>
               <td>{{ productName(batch.productId) }}</td>
               <td>{{ warehouseName(batch.warehouseId) }}</td>
@@ -115,6 +115,10 @@
             </tr>
           </tbody>
         </table>
+        <PaginationControl
+          v-model:currentPage="batchPage"
+          :totalPages="batchTotalPages"
+        />
       </div>
 
       <div class="panel">
@@ -135,7 +139,7 @@
           <button type="submit" class="mini" :disabled="!canAdjustInventory">提交调整</button>
         </form>
         <ul>
-          <li v-for="item in adjustments" :key="item.id">
+          <li v-for="item in paginatedAdjustments" :key="item.id">
             <div>
               <strong>{{ productName(item.productId) }}</strong>
               <small>{{ warehouseName(item.warehouseId) }} · {{ item.reason }}</small>
@@ -147,6 +151,10 @@
           </li>
           <li v-if="!adjustments.length" class="empty">暂无盘点记录</li>
         </ul>
+        <PaginationControl
+          v-model:currentPage="adjustmentPage"
+          :totalPages="adjustmentTotalPages"
+        />
       </div>
 
       <div class="panel">
@@ -166,7 +174,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="order in transfers" :key="order.id">
+            <tr v-for="order in paginatedTransfers" :key="order.id">
               <td>{{ order.id }}</td>
               <td>{{ warehouseName(order.fromWarehouseId) }} → {{ warehouseName(order.toWarehouseId) }}</td>
               <td>{{ productName(order.productId) }}</td>
@@ -190,6 +198,10 @@
             </tr>
           </tbody>
         </table>
+        <PaginationControl
+          v-model:currentPage="transferPage"
+          :totalPages="transferTotalPages"
+        />
       </div>
     </section>
   </section>
@@ -199,6 +211,7 @@
 import { reactive, ref, watch, computed } from "vue";
 import { storeToRefs } from "pinia";
 import InventoryTable from "../components/tables/InventoryTable.vue";
+import PaginationControl from "../components/ui/PaginationControl.vue";
 import { useInventoryStore } from "../stores/useInventoryStore";
 import { useAuthStore } from "../stores/useAuthStore";
 import { useEnterpriseStore } from "../stores/useEnterpriseStore";
@@ -211,6 +224,30 @@ const enterprise = useEnterpriseStore();
 const { inventory, reorderAlerts, totalInventoryValue, inventoryTurnover, loading, error } = storeToRefs(store);
 const { batches, adjustments, transfers, warehouses, products, expiringBatchCount } = storeToRefs(enterprise);
 const { notifySuccess, notifyError } = useToastBus();
+
+const batchPage = ref(1);
+const adjustmentPage = ref(1);
+const transferPage = ref(1);
+const pageSize = 5;
+
+const batchTotalPages = computed(() => Math.ceil(batches.value.length / pageSize));
+const adjustmentTotalPages = computed(() => Math.ceil(adjustments.value.length / pageSize));
+const transferTotalPages = computed(() => Math.ceil(transfers.value.length / pageSize));
+
+const paginatedBatches = computed(() => {
+  const start = (batchPage.value - 1) * pageSize;
+  return batches.value.slice(start, start + pageSize);
+});
+
+const paginatedAdjustments = computed(() => {
+  const start = (adjustmentPage.value - 1) * pageSize;
+  return adjustments.value.slice(start, start + pageSize);
+});
+
+const paginatedTransfers = computed(() => {
+  const start = (transferPage.value - 1) * pageSize;
+  return transfers.value.slice(start, start + pageSize);
+});
 
 const form = reactive({
   fruit: inventory.value[0]?.fruit || "火龙果",
