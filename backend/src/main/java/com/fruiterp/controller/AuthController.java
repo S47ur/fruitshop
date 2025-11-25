@@ -25,6 +25,14 @@ public class AuthController {
                     "email", "admin@fruitshop.com"
             ));
         }
+        if ("fruitboss".equals(username) && "boss123".equals(password)) {
+            return ApiResponse.success(Map.of(
+                    "username", "fruitboss",
+                    "name", "水果老板",
+                    "role", "owner",
+                    "email", "boss@fruitshop.com"
+            ));
+        }
         return ApiResponse.error("用户名或密码错误");
     }
 }

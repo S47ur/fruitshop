@@ -6,7 +6,8 @@
         <p>掌握库存价值、批次保质与调拨执行。</p>
       </div>
       <div class="page__actions">
-        <button class="ghost" @click="generateStocktake">导出盘点表</button>
+        <button class="ghost" @click="generateStocktake">导出 CSV</button>
+        <button class="ghost" @click="generateStocktakePdf">导出 PDF</button>
       </div>
     </header>
 
@@ -350,6 +351,10 @@ const handleProgressTransfer = async (id: string) => {
   }
 };
 
+import { exportToPdf } from "../utils/exportUtils";
+
+// ...existing code...
+
 const generateStocktake = () => {
   const header = ["品类", "库存kg", "成本", "库存价值", "预警线"];
   const rows = inventory.value.map((item) => [
@@ -370,6 +375,19 @@ const generateStocktake = () => {
   link.click();
   URL.revokeObjectURL(url);
 };
+
+const generateStocktakePdf = () => {
+  const header = ["Fruit", "Stock (kg)", "Cost", "Value", "Reorder Level"];
+  const rows = inventory.value.map((item) => [
+    item.fruit,
+    item.onHandKg,
+    item.unitCost,
+    (item.onHandKg * item.unitCost).toFixed(2),
+    item.reorderLevelKg
+  ]);
+  exportToPdf("Stocktake Report", header, rows, `stocktake-${new Date().toISOString().slice(0, 10)}.pdf`);
+};
+
 </script>
 
 <style scoped>

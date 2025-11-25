@@ -2,9 +2,14 @@
   <div class="panel">
     <div class="panel-header">
       <p class="title">支付方式拆解</p>
-      <button type="button" class="ghost-button" :disabled="!breakdown.length" @click="exportCsv">
-        导出 CSV
-      </button>
+      <div class="actions">
+        <button type="button" class="ghost-button" :disabled="!breakdown.length" @click="exportCsv">
+          导出 CSV
+        </button>
+        <button type="button" class="ghost-button" :disabled="!breakdown.length" @click="exportPdf">
+          导出 PDF
+        </button>
+      </div>
     </div>
     <table>
       <thead>
@@ -29,6 +34,7 @@
 
 <script setup lang="ts">
 import type { PaymentBreakdownEntry, PaymentMethod } from "../../stores/types";
+import { exportToPdf } from "../../utils/exportUtils";
 
 interface Props {
   breakdown: PaymentBreakdownEntry[];
@@ -64,6 +70,18 @@ const exportCsv = () => {
   link.download = `payment-breakdown-${new Date().toISOString().slice(0, 10)}.csv`;
   link.click();
   URL.revokeObjectURL(url);
+};
+
+const exportPdf = () => {
+  if (!props.breakdown.length) return;
+  const header = ["Method", "Incoming", "Outgoing", "Net"];
+  const rows = props.breakdown.map((entry) => [
+    entry.method,
+    entry.incoming.toFixed(2),
+    entry.outgoing.toFixed(2),
+    entry.net.toFixed(2)
+  ]);
+  exportToPdf("Payment Breakdown", header, rows, `payment-breakdown-${new Date().toISOString().slice(0, 10)}.pdf`);
 };
 </script>
 

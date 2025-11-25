@@ -62,10 +62,13 @@ const option = computed(() => ({
 }));
 
 const exportAsImage = () => {
-  if (!chartRef.value?.getEchartsInstance) return null;
-  const instance = chartRef.value.getEchartsInstance();
-  if (!instance) return null;
-  return instance.getDataURL({ type: "png", pixelRatio: 2, backgroundColor: "#fff" });
+  // Try getting instance from different possible locations on the ref
+  const instance = chartRef.value?.chart ?? chartRef.value?.getEchartsInstance?.() ?? chartRef.value;
+  
+  if (instance && typeof instance.getDataURL === 'function') {
+    return instance.getDataURL({ type: "png", pixelRatio: 2, backgroundColor: "#fff" });
+  }
+  return null;
 };
 
 defineExpose({ exportAsImage });

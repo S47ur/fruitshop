@@ -30,6 +30,7 @@ import type {
   StoreProfile,
   TransferRequest,
   UnitConversion,
+  UserAccount,
   UserRole,
   WarehouseProfile
 } from "./types";
@@ -56,6 +57,7 @@ interface EnterpriseSnapshot {
   integrations: IntegrationEndpoint[];
   automations: AutomationTask[];
   parameters: ParameterConfig[];
+  users: UserAccount[];
 }
 
 const storageKey = "fruitshop-enterprise-state";
@@ -83,7 +85,13 @@ const buildDefaultSnapshot = (): EnterpriseSnapshot => ({
   auditLogs: [],
   integrations: [],
   automations: [],
-  parameters: []
+  parameters: [],
+  users: [
+    { id: "u1", username: "admin", name: "系统管理员", role: "owner", email: "admin@fruitshop.com", status: "active" },
+    { id: "u2", username: "fruitboss", name: "水果老板", role: "owner", email: "boss@fruitshop.com", status: "active" },
+    { id: "u3", username: "manager1", name: "张店长", role: "manager", email: "zhang@fruitshop.com", status: "active" },
+    { id: "u4", username: "cashier1", name: "李收银", role: "cashier", email: "li@fruitshop.com", status: "active" }
+  ]
 });
 
 const loadSnapshot = (): EnterpriseSnapshot => {
@@ -118,7 +126,8 @@ const loadSnapshot = (): EnterpriseSnapshot => {
       auditLogs: parsed.auditLogs ?? fallback.auditLogs,
       integrations: parsed.integrations ?? fallback.integrations,
       automations: parsed.automations ?? fallback.automations,
-      parameters: parsed.parameters ?? fallback.parameters
+      parameters: parsed.parameters ?? fallback.parameters,
+      users: parsed.users ?? fallback.users
     };
   } catch (err) {
     return buildDefaultSnapshot();
@@ -161,6 +170,7 @@ export const useEnterpriseStore = defineStore("enterprise", () => {
   const integrations = ref<IntegrationEndpoint[]>(snapshot.integrations);
   const automations = ref<AutomationTask[]>(snapshot.automations);
   const parameters = ref<ParameterConfig[]>(snapshot.parameters);
+  const users = ref<UserAccount[]>(snapshot.users);
   const loading = ref(false);
 
   const persist = () => {
@@ -186,7 +196,8 @@ export const useEnterpriseStore = defineStore("enterprise", () => {
       auditLogs: auditLogs.value,
       integrations: integrations.value,
       automations: automations.value,
-      parameters: parameters.value
+      parameters: parameters.value,
+      users: users.value
     };
     window.localStorage.setItem(storageKey, JSON.stringify(payload));
   };
@@ -400,6 +411,14 @@ export const useEnterpriseStore = defineStore("enterprise", () => {
       cashForecast.value = entries;
     });
 
+  const updateUserRole = (userId: string, role: UserRole) =>
+    withPersist(() => {
+      const target = users.value.find((u) => u.id === userId);
+      if (target) {
+        target.role = role;
+      }
+    });
+
   return {
     loading,
     products,
@@ -423,6 +442,7 @@ export const useEnterpriseStore = defineStore("enterprise", () => {
     integrations,
     automations,
     parameters,
+    users,
     productCount,
     supplierCount,
     customerCount,
@@ -447,6 +467,7 @@ export const useEnterpriseStore = defineStore("enterprise", () => {
     upsertIntegration,
     toggleAutomation,
     updateParameter,
-    simulateForecast
+    simulateForecast,
+    updateUserRole
   };
 });

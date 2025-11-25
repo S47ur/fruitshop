@@ -377,3 +377,12 @@ export interface ParameterConfig {
   value: string;
   description: string;
 }
+
+export interface UserAccount {
+  id: string;
+  username: string;
+  name: string;
+  role: UserRole;
+  email: string;
+  status: "active" | "disabled";
+}

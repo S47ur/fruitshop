@@ -32,6 +32,10 @@
           <input type="date" v-model="customEnd" @change="handleCustomRangeChange" />
         </div>
       </div>
+      <div class="filters-group">
+        <label>操作</label>
+        <button class="preset-button" @click="handleExportMonthlyReport">导出月报表</button>
+      </div>
     </div>
 
     <div class="stats-grid">
@@ -146,6 +150,7 @@ import SalesForm from "../components/forms/SalesForm.vue";
 import { useInventoryStore } from "../stores/useInventoryStore";
 import { useAuthStore } from "../stores/useAuthStore";
 import { useToastBus } from "../composables/useToastBus";
+import { exportMonthlyReport } from "../utils/exportUtils";
 
 type DatePreset = "today" | "week" | "month" | "all" | "custom";
 type ExportableChart = { exportAsImage: () => string | null };
@@ -221,6 +226,17 @@ const applyPreset = (preset: DatePreset) => {
 
 const handleCustomRangeChange = () => {
   setCustomDateRange(customStart.value || null, customEnd.value || null);
+};
+
+const handleExportMonthlyReport = () => {
+  const currentMonth = new Date().toISOString().slice(0, 7);
+  const stats = [
+    { label: "Total Revenue", value: `CNY ${totalRevenue.value.toFixed(2)}` },
+    { label: "Total Inventory Value", value: `CNY ${totalInventoryValue.value.toFixed(2)}` },
+    { label: "Gross Profit", value: `CNY ${grossProfit.value.toFixed(2)}` },
+    { label: "Inventory Turnover", value: inventoryTurnover.value?.toFixed(1) ?? "--" }
+  ];
+  exportMonthlyReport(currentMonth, stats, `monthly-report-${currentMonth}.pdf`);
 };
 
 const isPresetActive = (preset: DatePreset) => dateFilter.value.preset === preset;

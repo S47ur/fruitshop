@@ -15,6 +15,45 @@
     <div class="grid">
       <div class="panel wide">
         <div class="panel__header">
+          <p>用户管理</p>
+          <span>{{ users.length }} 个用户</span>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>用户名</th>
+              <th>姓名</th>
+              <th>邮箱</th>
+              <th>角色</th>
+              <th>状态</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="user in users" :key="user.id">
+              <td>{{ user.username }}</td>
+              <td>{{ user.name }}</td>
+              <td>{{ user.email }}</td>
+              <td>
+                <select
+                  :value="user.role"
+                  :disabled="!canManageSystem"
+                  @change="updateUserRole(user.id, ($event.target as HTMLSelectElement).value as UserRole)"
+                >
+                  <option v-for="(label, key) in roleCopy" :key="key" :value="key">{{ label }}</option>
+                </select>
+              </td>
+              <td>
+                <span class="chip" :class="user.status === 'active' ? 'done' : 'pending'">
+                  {{ user.status === "active" ? "启用" : "禁用" }}
+                </span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="panel wide">
+        <div class="panel__header">
           <p>角色矩阵</p>
           <span>{{ roleMatrix.length }} 个角色</span>
         </div>
@@ -180,7 +219,7 @@ import type { UserRole } from "../stores/types";
 
 const enterprise = useEnterpriseStore();
 const auth = useAuthStore();
-const { roleMatrix, approvalFlows, integrations, automations, parameters, auditLogs } = storeToRefs(enterprise);
+const { roleMatrix, approvalFlows, integrations, automations, parameters, auditLogs, users } = storeToRefs(enterprise);
 const { notifySuccess, notifyError } = useToastBus();
 
 const canManageSystem = computed(() => auth.hasPermission("system.manage"));
@@ -206,6 +245,19 @@ const roleCopy: Partial<Record<UserRole, string>> = {
 
 const formatTime = (value: string) => new Date(value).toLocaleString("zh-CN", { hour12: false });
 const formatNumber = (value: number) => value.toLocaleString("zh-CN");
+
+const updateUserRole = async (userId: string, role: UserRole) => {
+  if (!canManageSystem.value) {
+    notifyError("当前账户无权限");
+    return;
+  }
+  try {
+    await enterprise.updateUserRole(userId, role);
+    notifySuccess("用户角色已更新");
+  } catch (err) {
+    notifyError(err instanceof Error ? err.message : "更新失败");
+  }
+};
 
 const saveParameter = async (key: string) => {
   if (!canManageSystem.value) {

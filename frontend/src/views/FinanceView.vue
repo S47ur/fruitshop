@@ -6,7 +6,8 @@
         <p>支付拆解、票据与现金流预测一屏掌控。</p>
       </div>
       <div class="page__actions">
-        <button class="ghost" @click="exportFinanceReport">导出资金日报</button>
+        <button class="ghost" @click="exportFinanceReport">导出 CSV</button>
+        <button class="ghost" @click="exportFinanceReportPdf">导出 PDF</button>
       </div>
     </header>
 
@@ -371,6 +372,10 @@ const refreshForecast = async () => {
   notifySuccess("已刷新现金流预测");
 };
 
+import { exportToPdf } from "../utils/exportUtils";
+
+// ...existing code...
+
 const exportFinanceReport = () => {
   const header = ["待收款", "待付款", "毛利", "时间"];
   const summaryRow = [receivables.value, payables.value, grossProfit.value, new Date().toISOString()];
@@ -391,6 +396,18 @@ const exportFinanceReport = () => {
   link.click();
   URL.revokeObjectURL(url);
 };
+
+const exportFinanceReportPdf = () => {
+  const header = ["Method", "Incoming", "Outgoing", "Net"];
+  const rows = paymentBreakdown.value.map((entry) => [
+    entry.method,
+    entry.incoming.toFixed(2),
+    entry.outgoing.toFixed(2),
+    entry.net.toFixed(2)
+  ]);
+  exportToPdf("Finance Report", header, rows, `finance-${new Date().toISOString().slice(0, 10)}.pdf`);
+};
+
 </script>
 
 <style scoped>

@@ -6,7 +6,8 @@
         <p>跟踪零售/团购订单、报价与促销策略。</p>
       </div>
       <div class="page__actions">
-        <button class="ghost" @click="exportSales">导出销售清单</button>
+        <button class="ghost" @click="exportSales">导出 CSV</button>
+        <button class="ghost" @click="exportSalesPdf">导出 PDF</button>
         <button class="primary" :disabled="!canWriteSales || loading" @click="generateDemoSale">
           快速生成订单
         </button>
@@ -515,6 +516,10 @@ const togglePromotion = async (id: string) => {
   }
 };
 
+import { exportToPdf } from "../utils/exportUtils";
+
+// ...existing code...
+
 const exportSales = () => {
   const header = ["单号", "客户", "品类", "数量", "金额", "支付方式", "状态", "日期"];
   const rows = sales.value.map((item) => [
@@ -537,6 +542,21 @@ const exportSales = () => {
   link.download = `sales-${new Date().toISOString().slice(0, 10)}.csv`;
   link.click();
   URL.revokeObjectURL(url);
+};
+
+const exportSalesPdf = () => {
+  const header = ["ID", "Customer", "Fruit", "Qty", "Amount", "Payment", "Status", "Date"];
+  const rows = sales.value.map((item) => [
+    item.id,
+    item.customer, // Note: Chinese chars might not render correctly in standard jsPDF
+    item.fruit,
+    `${item.quantityKg}kg`,
+    (item.quantityKg * item.unitPrice).toFixed(2),
+    item.paymentMethod,
+    item.status,
+    item.date
+  ]);
+  exportToPdf("Sales Report", header, rows, `sales-${new Date().toISOString().slice(0, 10)}.pdf`);
 };
 
 const generateDemoSale = async () => {

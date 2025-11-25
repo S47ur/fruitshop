@@ -60,10 +60,12 @@ const option = computed(() => ({
 }));
 
 const exportAsImage = () => {
-  if (!chartRef.value?.getEchartsInstance) return null;
-  const instance = chartRef.value.getEchartsInstance();
-  if (!instance) return null;
-  return instance.getDataURL({ type: "png", pixelRatio: 2, backgroundColor: "#fff" });
+  const instance = chartRef.value?.chart ?? chartRef.value?.getEchartsInstance?.() ?? chartRef.value;
+  
+  if (instance && typeof instance.getDataURL === 'function') {
+    return instance.getDataURL({ type: "png", pixelRatio: 2, backgroundColor: "#fff" });
+  }
+  return null;
 };
 
 defineExpose({ exportAsImage });

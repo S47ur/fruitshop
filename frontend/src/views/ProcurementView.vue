@@ -6,7 +6,8 @@
         <p>掌控供应商到货、票据与审批链，确保补货如期到仓。</p>
       </div>
       <div class="page__actions">
-        <button class="ghost" @click="exportPurchases">导出采购明细</button>
+        <button class="ghost" @click="exportPurchases">导出 CSV</button>
+        <button class="ghost" @click="exportPurchasesPdf">导出 PDF</button>
         <button class="primary" :disabled="!canWriteProcurement || loading" @click="generateDemoPurchase">
           快速生成测试单
         </button>
@@ -309,6 +310,10 @@ const markPaid = async (id: string) => {
   }
 };
 
+import { exportToPdf } from "../utils/exportUtils";
+
+// ...existing code...
+
 const exportPurchases = () => {
   const header = ["单号", "供应商", "品类", "数量", "金额", "支付方式", "状态", "日期"];
   const rows = purchases.value.map((item) => [
@@ -331,6 +336,21 @@ const exportPurchases = () => {
   link.download = `purchases-${new Date().toISOString().slice(0, 10)}.csv`;
   link.click();
   URL.revokeObjectURL(url);
+};
+
+const exportPurchasesPdf = () => {
+  const header = ["ID", "Supplier", "Fruit", "Qty", "Amount", "Payment", "Status", "Date"];
+  const rows = purchases.value.map((item) => [
+    item.id,
+    item.supplier,
+    item.fruit,
+    `${item.quantityKg}kg`,
+    (item.quantityKg * item.unitCost).toFixed(2),
+    item.paymentMethod,
+    item.status,
+    item.date
+  ]);
+  exportToPdf("Purchase Report", header, rows, `purchases-${new Date().toISOString().slice(0, 10)}.pdf`);
 };
 
 const generateDemoPurchase = async () => {
