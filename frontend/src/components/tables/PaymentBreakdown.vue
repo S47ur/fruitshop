@@ -74,14 +74,14 @@ const exportCsv = () => {
 
 const exportPdf = () => {
   if (!props.breakdown.length) return;
-  const header = ["Method", "Incoming", "Outgoing", "Net"];
+  const header = ["支付方式", "收入", "支出", "净流入"];
   const rows = props.breakdown.map((entry) => [
-    entry.method,
+    methodMap[entry.method],
     entry.incoming.toFixed(2),
     entry.outgoing.toFixed(2),
     entry.net.toFixed(2)
   ]);
-  exportToPdf("Payment Breakdown", header, rows, `payment-breakdown-${new Date().toISOString().slice(0, 10)}.pdf`);
+  exportToPdf("支付方式明细", header, rows, `payment-breakdown-${new Date().toISOString().slice(0, 10)}.pdf`);
 };
 </script>
 

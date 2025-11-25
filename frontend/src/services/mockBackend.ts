@@ -184,7 +184,8 @@ const rolePermissionsMap: Record<UserRole, PermissionKey[]> = {
     "sales.write",
     "inventory.write",
     "finance.write",
-    "org.switch-store"
+    "org.switch-store",
+    "system.manage"
   ],
   manager: ["procurement.write", "sales.write", "inventory.write", "finance.write"],
   cashier: ["sales.write"],
@@ -192,6 +193,14 @@ const rolePermissionsMap: Record<UserRole, PermissionKey[]> = {
 };
 
 const seedUsers: BackendUser[] = [
+  {
+    username: "admin",
+    password: "admin123",
+    name: "系统管理员",
+    role: "owner",
+    email: "admin@fruitshop.com",
+    stores: [seedStores[0].id, seedStores[1].id, seedStores[2].id]
+  },
   {
     username: "fruitboss",
     password: "123456",

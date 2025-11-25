@@ -231,10 +231,10 @@ const handleCustomRangeChange = () => {
 const handleExportMonthlyReport = () => {
   const currentMonth = new Date().toISOString().slice(0, 7);
   const stats = [
-    { label: "Total Revenue", value: `CNY ${totalRevenue.value.toFixed(2)}` },
-    { label: "Total Inventory Value", value: `CNY ${totalInventoryValue.value.toFixed(2)}` },
-    { label: "Gross Profit", value: `CNY ${grossProfit.value.toFixed(2)}` },
-    { label: "Inventory Turnover", value: inventoryTurnover.value?.toFixed(1) ?? "--" }
+    { label: "总收入", value: `¥${totalRevenue.value.toFixed(2)}` },
+    { label: "库存总价值", value: `¥${totalInventoryValue.value.toFixed(2)}` },
+    { label: "毛利", value: `¥${grossProfit.value.toFixed(2)}` },
+    { label: "库存周转率", value: inventoryTurnover.value?.toFixed(1) ?? "--" }
   ];
   exportMonthlyReport(currentMonth, stats, `monthly-report-${currentMonth}.pdf`);
 };

@@ -398,14 +398,14 @@ const exportFinanceReport = () => {
 };
 
 const exportFinanceReportPdf = () => {
-  const header = ["Method", "Incoming", "Outgoing", "Net"];
+  const header = ["支付方式", "收入", "支出", "净流入"];
   const rows = paymentBreakdown.value.map((entry) => [
-    entry.method,
+    entry.method === "cash" ? "现金" : entry.method === "card" ? "刷卡" : entry.method === "mobile" ? "移动支付" : "转账",
     entry.incoming.toFixed(2),
     entry.outgoing.toFixed(2),
     entry.net.toFixed(2)
   ]);
-  exportToPdf("Finance Report", header, rows, `finance-${new Date().toISOString().slice(0, 10)}.pdf`);
+  exportToPdf("资金日报", header, rows, `finance-${new Date().toISOString().slice(0, 10)}.pdf`);
 };
 
 </script>

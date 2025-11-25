@@ -545,18 +545,18 @@ const exportSales = () => {
 };
 
 const exportSalesPdf = () => {
-  const header = ["ID", "Customer", "Fruit", "Qty", "Amount", "Payment", "Status", "Date"];
+  const header = ["单号", "客户", "品类", "数量", "金额", "支付方式", "状态", "日期"];
   const rows = sales.value.map((item) => [
     item.id,
-    item.customer, // Note: Chinese chars might not render correctly in standard jsPDF
+    item.customer,
     item.fruit,
     `${item.quantityKg}kg`,
     (item.quantityKg * item.unitPrice).toFixed(2),
-    item.paymentMethod,
-    item.status,
+    paymentMap[item.paymentMethod],
+    item.status === "settled" ? "已收款" : "待收款",
     item.date
   ]);
-  exportToPdf("Sales Report", header, rows, `sales-${new Date().toISOString().slice(0, 10)}.pdf`);
+  exportToPdf("销售报表", header, rows, `sales-${new Date().toISOString().slice(0, 10)}.pdf`);
 };
 
 const generateDemoSale = async () => {

@@ -339,18 +339,18 @@ const exportPurchases = () => {
 };
 
 const exportPurchasesPdf = () => {
-  const header = ["ID", "Supplier", "Fruit", "Qty", "Amount", "Payment", "Status", "Date"];
+  const header = ["单号", "供应商", "品类", "数量", "金额", "支付方式", "状态", "日期"];
   const rows = purchases.value.map((item) => [
     item.id,
     item.supplier,
     item.fruit,
     `${item.quantityKg}kg`,
     (item.quantityKg * item.unitCost).toFixed(2),
-    item.paymentMethod,
-    item.status,
+    paymentMap[item.paymentMethod],
+    item.status === "settled" ? "已付款" : "待付款",
     item.date
   ]);
-  exportToPdf("Purchase Report", header, rows, `purchases-${new Date().toISOString().slice(0, 10)}.pdf`);
+  exportToPdf("采购报表", header, rows, `purchases-${new Date().toISOString().slice(0, 10)}.pdf`);
 };
 
 const generateDemoPurchase = async () => {
