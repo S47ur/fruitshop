@@ -26,6 +26,18 @@ public class Product extends BaseEntity {
     @Column(nullable = false, length = 20)
     private String unit;
 
+    @Column(precision = 5, scale = 2)
+    private java.math.BigDecimal taxRate;
+
+    @Column(precision = 10, scale = 2)
+    private java.math.BigDecimal priceBase;
+
+    @Column(precision = 10, scale = 2)
+    private java.math.BigDecimal priceMin;
+
+    @Column(precision = 10, scale = 2)
+    private java.math.BigDecimal priceMax;
+
     @Column(nullable = false, length = 20)
     private String status;
 }
