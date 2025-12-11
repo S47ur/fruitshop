@@ -1,837 +1,681 @@
 <template>
-  <section class="page">
-    <header class="page__header">
-      <div>
-        <h1>销售管理</h1>
-        <p>跟踪零售/团购订单、报价与促销策略。</p>
+  <div class="sales-view">
+    <!-- 左侧商品库 -->
+    <aside class="product-panel">
+      <h2>商品库</h2>
+      <div class="product-grid">
+        <div
+          v-for="item in inventory"
+          :key="item.id"
+          class="product-card"
+          @click="addToCart(item)"
+        >
+          <div class="product-image">
+            <span class="placeholder">{{ item.fruit.substring(0, 2) }}</span>
+          </div>
+          <div class="product-info">
+            <p class="product-name">{{ item.fruit }}</p>
+            <p class="product-spec">{{ item.unitPrice }}元/kg</p>
+            <p class="product-price" v-if="item.onHandKg > 0">库存: {{ item.onHandKg }}kg</p>
+            <p class="product-price out-of-stock" v-else>缺货</p>
+          </div>
+        </div>
       </div>
-      <div class="page__actions">
-        <button class="ghost" @click="exportSales">导出 CSV</button>
-        <button class="ghost" @click="exportSalesPdf">导出 PDF</button>
-        <button class="primary" :disabled="!canWriteSales || loading" @click="generateDemoSale">
-          快速生成订单
+    </aside>
+
+    <!-- 右侧收银条 -->
+    <main class="checkout-panel">
+      <!-- 会员信息栏 -->
+      <section class="member-info">
+        <div class="member-header">
+          <h3>会员信息</h3>
+          <button class="btn-member" @click="showMemberDialog = true">输入会员</button>
+        </div>
+        <div v-if="currentMember" class="member-card">
+          <p><strong>{{ currentMember.name }}</strong></p>
+          <p>余额: ¥{{ currentMember.balance }}</p>
+        </div>
+        <div v-else class="member-card empty">
+          <p>未登录会员</p>
+        </div>
+      </section>
+
+      <!-- 购物车列表 -->
+      <section class="cart-section">
+        <h3>购物车</h3>
+        <div class="cart-items">
+          <div v-if="cart.length === 0" class="empty-cart">
+            <p>购物车为空</p>
+          </div>
+          <div v-for="(item, idx) in cart" :key="idx" class="cart-item">
+            <div class="cart-item-info">
+              <p>{{ item.fruit }}</p>
+              <p class="price">¥{{ item.unitPrice }}/kg</p>
+            </div>
+            <div class="cart-item-actions">
+              <input
+                v-model.number="cart[idx].quantityKg"
+                type="number"
+                min="0.01"
+                step="0.01"
+                @input="updateCart"
+                class="qty-input"
+              />
+              <span class="total">¥{{ formatNumber(item.quantityKg * item.unitPrice) }}</span>
+              <button class="btn-delete" @click="removeFromCart(idx)">删除</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 挂单按钮 -->
+      <button class="btn-hold" @click="holdOrder">挂单</button>
+
+      <!-- 结算区 -->
+      <section class="settlement-section">
+        <div class="total-display">
+          <p>应收金额</p>
+          <p class="amount">¥{{ formatNumber(totalAmount) }}</p>
+        </div>
+
+        <!-- 支付方式 -->
+        <div class="payment-methods">
+          <label v-for="method in paymentMethods" :key="method">
+            <input
+              v-model="selectedPaymentMethod"
+              type="radio"
+              :value="method"
+            />
+            <span>{{ paymentMethodLabels[method] }}</span>
+          </label>
+        </div>
+
+        <!-- 大按钮结算 -->
+        <button
+          class="btn-checkout primary"
+          @click="checkout"
+          :disabled="cart.length === 0"
+        >
+          结算 (空格键)
         </button>
-      </div>
-    </header>
+        <button class="btn-clear" @click="clearCart">清空 (ESC)</button>
+      </section>
+    </main>
 
-    <p v-if="error" class="warning">{{ error }}</p>
-    <p v-else-if="loading" class="info">数据加载中...</p>
-
-    <div class="stats-grid">
-      <div class="stat">
-        <p>今日销售额</p>
-        <strong>{{ formatCurrency(todayRevenue) }}</strong>
-        <small>含所有渠道</small>
-      </div>
-      <div class="stat">
-        <p>待收款</p>
-        <strong>{{ formatCurrency(receivables) }}</strong>
-        <small>待结 {{ pendingSales.length }} 单</small>
-      </div>
-      <div class="stat">
-        <p>报价管道</p>
-        <strong>{{ formatCurrency(activeQuoteValue) }}</strong>
-        <small>{{ quotePipeline }} 份生效</small>
-      </div>
-      <div class="stat">
-        <p>生效合同</p>
-        <strong>{{ contracts.length }}</strong>
-        <small>覆盖 {{ contractedCustomers }} 个大客户</small>
-      </div>
-    </div>
-
-    <div class="layout">
-      <SalesForm />
-      <div class="panel">
-        <div class="filters">
-          <input v-model.trim="keyword" placeholder="搜索客户/品类" />
-          <select v-model="paymentFilter">
-            <option value="all">全部支付方式</option>
-            <option value="cash">现金</option>
-            <option value="card">刷卡</option>
-            <option value="mobile">移动支付</option>
-            <option value="transfer">银行转账</option>
-          </select>
-        </div>
-        <table>
-          <thead>
-            <tr>
-              <th>单号</th>
-              <th>客户</th>
-              <th>品类</th>
-              <th>数量</th>
-              <th>金额</th>
-              <th>支付方式</th>
-              <th>状态</th>
-              <th />
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="line in paginatedSales" :key="line.id">
-              <td>{{ line.id }}</td>
-              <td>{{ line.customer }}</td>
-              <td>{{ line.fruit }}</td>
-              <td>{{ line.quantityKg }}kg</td>
-              <td>{{ formatCurrency(line.quantityKg * line.unitPrice) }}</td>
-              <td>{{ paymentMap[line.paymentMethod] }}</td>
-              <td>
-                <span class="chip" :class="line.status === 'settled' ? 'done' : 'pending'">
-                  {{ line.status === "settled" ? "已收款" : "待收款" }}
-                </span>
-              </td>
-              <td>
-                <button
-                  class="mini"
-                  :disabled="line.status === 'settled' || loading || !canWriteSales"
-                  @click="markCollected(line.id)"
-                >
-                  {{ line.status === "settled" ? "完成" : "确认收款" }}
-                </button>
-              </td>
-            </tr>
-            <tr v-if="!filteredSales.length">
-              <td colspan="8" class="empty">暂无符合条件的销售单</td>
-            </tr>
-          </tbody>
-        </table>
-        <PaginationControl
-          v-model:currentPage="salesPage"
-          :totalPages="salesTotalPages"
+    <!-- 会员弹窗 -->
+    <dialog v-if="showMemberDialog" class="member-dialog">
+      <div class="dialog-content">
+        <h3>查询会员</h3>
+        <input
+          v-model="memberSearchInput"
+          type="text"
+          placeholder="输入手机号或扫会员码"
+          @keydown.enter="searchMember"
         />
-      </div>
-    </div>
-
-    <section class="advanced-grid">
-      <div class="panel">
-        <div class="panel__header">
-          <p>报价单管道</p>
-          <span>{{ quotes.length }} 份</span>
+        <div v-if="memberSearchResults.length > 0" class="member-list">
+          <div
+            v-for="member in memberSearchResults"
+            :key="member.id"
+            class="member-item"
+            @click="selectMember(member)"
+          >
+            <p><strong>{{ member.name }}</strong></p>
+            <p>余额: ¥{{ member.balance }} | 积分: {{ member.points }}</p>
+          </div>
         </div>
-        <table>
-          <thead>
-            <tr>
-              <th>编号</th>
-              <th>客户</th>
-              <th>有效期</th>
-              <th>金额</th>
-              <th>状态</th>
-              <th />
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="quote in paginatedQuotes" :key="quote.id">
-              <td>{{ quote.id }}</td>
-              <td>{{ customerName(quote.customerId) }}</td>
-              <td>{{ quote.validFrom }} ~ {{ quote.validTo }}</td>
-              <td>{{ formatCurrency(quote.totalAmount) }}</td>
-              <td>
-                <span class="chip" :class="`status-${quote.status}`">{{ quoteStatusCopy[quote.status] }}</span>
-              </td>
-              <td class="actions">
-                <button
-                  v-for="status in quoteStatuses"
-                  :key="status.key"
-                  class="mini ghost"
-                  type="button"
-                  :disabled="status.key === quote.status || !canApproveSales"
-                  @click="handleQuoteStatus(quote.id, status.key)"
-                >
-                  {{ status.label }}
-                </button>
-                <button
-                  v-if="quote.status === 'accepted'"
-                  class="mini"
-                  type="button"
-                  :disabled="!canApproveSales"
-                  @click="handleActivateContract(quote.id)"
-                >
-                  生成合同
-                </button>
-              </td>
-            </tr>
-            <tr v-if="quotesLoading">
-              <td colspan="6" class="empty">报价数据加载中...</td>
-            </tr>
-            <tr v-else-if="quotesError">
-              <td colspan="6" class="empty">{{ quotesError }}</td>
-            </tr>
-            <tr v-else-if="!quotes.length">
-              <td colspan="6" class="empty">暂无报价记录</td>
-            </tr>
-          </tbody>
-        </table>
-        <PaginationControl
-          v-model:currentPage="quotePage"
-          :totalPages="quoteTotalPages"
-        />
-      </div>
-
-      <div class="panel">
-        <div class="panel__header">
-          <p>合同履约</p>
-          <span>{{ contracts.length }} 份</span>
+        <div class="dialog-actions">
+          <button @click="showMemberDialog = false">关闭</button>
+          <button @click="searchMember">搜索</button>
         </div>
-        <table>
-          <thead>
-            <tr>
-              <th>合同号</th>
-              <th>客户</th>
-              <th>渠道</th>
-              <th>周期</th>
-              <th>结算</th>
-              <th>状态</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="contract in paginatedContracts" :key="contract.id">
-              <td>{{ contract.id }}</td>
-              <td>{{ customerName(contract.customerId) }}</td>
-              <td>{{ contract.channel }}</td>
-              <td>{{ contract.startDate }} ~ {{ contract.endDate }}</td>
-              <td>{{ paymentMap[contract.settlementMethod] }}</td>
-              <td><span class="chip">{{ contractStatusCopy[contract.status] }}</span></td>
-            </tr>
-            <tr v-if="!contracts.length">
-              <td colspan="6" class="empty">暂无合同</td>
-            </tr>
-          </tbody>
-        </table>
-        <PaginationControl
-          v-model:currentPage="contractPage"
-          :totalPages="contractTotalPages"
-        />
       </div>
-
-      <div class="panel">
-        <div class="panel__header">
-          <p>促销策略</p>
-          <span>{{ activePromotionCount }} 个生效</span>
-        </div>
-        <table>
-          <thead>
-            <tr>
-              <th>名称</th>
-              <th>类型</th>
-              <th>范围</th>
-              <th>审批</th>
-              <th>状态</th>
-              <th />
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="promo in paginatedPromotions" :key="promo.id">
-              <td>{{ promo.name }}</td>
-              <td>{{ promo.type }}</td>
-              <td>{{ promo.scope.join("、") }}</td>
-              <td>{{ promo.approvalStatus }}</td>
-              <td>
-                <span class="chip" :class="promo.active ? 'done' : 'pending'">
-                  {{ promo.active ? "已启用" : "未启用" }}
-                </span>
-              </td>
-              <td>
-                <button class="mini ghost" type="button" :disabled="!canApproveSales" @click="togglePromotion(promo.id)">
-                  {{ promo.active ? "下架" : "启用" }}
-                </button>
-              </td>
-            </tr>
-            <tr v-if="!promotions.length">
-              <td colspan="6" class="empty">暂无促销策略</td>
-            </tr>
-          </tbody>
-        </table>
-        <PaginationControl
-          v-model:currentPage="promotionPage"
-          :totalPages="promotionTotalPages"
-        />
-      </div>
-
-      <div class="panel">
-        <div class="panel__header">
-          <p>渠道结算</p>
-          <span>{{ channelConfigs.length }} 个渠道</span>
-        </div>
-        <table>
-          <thead>
-            <tr>
-              <th>渠道</th>
-              <th>账期(天)</th>
-              <th>扣率</th>
-              <th>结算方式</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="channel in paginatedChannels" :key="channel.id">
-              <td>{{ channel.name }}</td>
-              <td>{{ channel.settlementDays }}</td>
-              <td>{{ formatPercent(channel.feeRate) }}</td>
-              <td>{{ channel.splitMode === "gross" ? "含税" : "净额" }}</td>
-            </tr>
-            <tr v-if="!channelConfigs.length">
-              <td colspan="4" class="empty">暂无渠道配置</td>
-            </tr>
-          </tbody>
-        </table>
-        <PaginationControl
-          v-model:currentPage="channelPage"
-          :totalPages="channelTotalPages"
-        />
-      </div>
-    </section>
-  </section>
+    </dialog>
+  </div>
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
-import { storeToRefs } from "pinia";
-import SalesForm from "../components/forms/SalesForm.vue";
-import PaginationControl from "../components/ui/PaginationControl.vue";
+import { reactive, computed, ref, onMounted, onUnmounted } from "vue";
+import { useRouter } from "vue-router";
 import { useInventoryStore } from "../stores/useInventoryStore";
-import { useAuthStore } from "../stores/useAuthStore";
-import { useEnterpriseStore } from "../stores/useEnterpriseStore";
-import { useToastBus } from "../composables/useToastBus";
 import { dataGateway } from "../services/dataGateway";
-import type { ContractStatus, PaymentMethod, QuoteStatus, Sale, SalesQuote } from "../stores/types";
+import type { InventoryItem, Sale, PaymentMethod, MemberProfile } from "../stores/types";
 
-const store = useInventoryStore();
-const auth = useAuthStore();
-const enterprise = useEnterpriseStore();
-const { sales, receivables, loading, error } = storeToRefs(store);
-const { contracts, promotions, channelConfigs, partners, quotes: enterpriseQuotes } = storeToRefs(enterprise);
-const { notifySuccess, notifyError } = useToastBus();
+const router = useRouter();
+const inventoryStore = useInventoryStore();
+const inventory = computed(() => inventoryStore.inventory);
 
-const salesPage = ref(1);
-const quotePage = ref(1);
-const contractPage = ref(1);
-const promotionPage = ref(1);
-const channelPage = ref(1);
-const pageSize = 10;
-const panelPageSize = 5;
+// 购物车
+const cart = ref<Array<Omit<Sale, "id" | "storeId" | "status">>>([]);
 
-const salesTotalPages = computed(() => Math.ceil(filteredSales.value.length / pageSize));
-const quoteTotalPages = computed(() => Math.ceil(quotes.value.length / panelPageSize));
-const contractTotalPages = computed(() => Math.ceil(contracts.value.length / panelPageSize));
-const promotionTotalPages = computed(() => Math.ceil(promotions.value.length / panelPageSize));
-const channelTotalPages = computed(() => Math.ceil(channelConfigs.value.length / panelPageSize));
-
-const paginatedSales = computed(() => {
-  const start = (salesPage.value - 1) * pageSize;
-  return filteredSales.value.slice(start, start + pageSize);
-});
-
-const paginatedQuotes = computed(() => {
-  const start = (quotePage.value - 1) * panelPageSize;
-  return quotes.value.slice(start, start + panelPageSize);
-});
-
-const paginatedContracts = computed(() => {
-  const start = (contractPage.value - 1) * panelPageSize;
-  return contracts.value.slice(start, start + panelPageSize);
-});
-
-const paginatedPromotions = computed(() => {
-  const start = (promotionPage.value - 1) * panelPageSize;
-  return promotions.value.slice(start, start + panelPageSize);
-});
-
-const paginatedChannels = computed(() => {
-  const start = (channelPage.value - 1) * panelPageSize;
-  return channelConfigs.value.slice(start, start + panelPageSize);
-});
-
-const keyword = ref("");
-const paymentFilter = ref<PaymentMethod | "all">("all");
-
-type RemoteQuote = Awaited<ReturnType<typeof dataGateway.listQuotes>> extends Array<infer T> ? T : never;
-
-interface QuoteDisplay {
-  id: string;
-  salesOrderId: string;
-  customerId: string;
-  channel: string;
-  status: QuoteStatus;
-  version: number;
-  validFrom: string;
-  validTo: string;
-  totalAmount: number;
-}
-
-const quotes = ref<QuoteDisplay[]>([]);
-const quotesLoading = ref(false);
-const quotesError = ref<string | null>(null);
-
-const paymentMap: Record<PaymentMethod, string> = {
+// 支付方式
+const paymentMethods: PaymentMethod[] = ["cash", "card", "mobile", "transfer", "balance", "points"];
+const paymentMethodLabels: Record<PaymentMethod, string> = {
   cash: "现金",
   card: "刷卡",
   mobile: "移动支付",
-  transfer: "银行转账"
+  transfer: "银行转账",
+  balance: "余额支付",
+  points: "积分抵扣"
+};
+const selectedPaymentMethod = ref<PaymentMethod>("cash");
+
+// 会员信息
+const currentMember = ref<any>(null);
+const showMemberDialog = ref(false);
+const memberSearchInput = ref("");
+const memberSearchResults = ref<any[]>([]);
+
+// 计算总金额
+const totalAmount = computed(() => {
+  return cart.value.reduce((sum, item) => sum + (item.quantityKg * item.unitPrice), 0);
+});
+
+// 格式化数字
+const formatNumber = (num: number) => {
+  return num.toFixed(2);
 };
 
-const round2 = (value: number) => Math.round(value * 100) / 100;
-
-const normalizeQuoteStatus = (status: string): QuoteStatus => {
-  if (status === "open") return "sent";
-  const allowed: QuoteStatus[] = ["draft", "sent", "accepted", "rejected", "expired"];
-  return allowed.includes(status as QuoteStatus) ? (status as QuoteStatus) : "draft";
+// 添加到购物车
+const addToCart = (item: InventoryItem) => {
+  if (item.onHandKg <= 0) return;
+  
+  const existing = cart.value.find(c => c.fruit === item.fruit);
+  if (existing) {
+    existing.quantityKg += 1;
+  } else {
+    cart.value.push({
+      date: new Date().toISOString().split('T')[0],
+      customer: currentMember.value?.name || "散户",
+      customerId: currentMember.value?.id,
+      channel: "零售",
+      fruit: item.fruit,
+      quantityKg: 1,
+      unitPrice: item.unitPrice,
+      paymentMethod: selectedPaymentMethod.value
+    });
+  }
 };
 
-const normalizeQuote = (remote: RemoteQuote, sale?: Sale): QuoteDisplay => {
-  const fallbackDate = sale?.date ?? new Date().toISOString().slice(0, 10);
-  const validTo = remote.validUntil ?? fallbackDate;
-  const validFrom = sale?.date ?? fallbackDate;
-  const baseAmount = sale ? sale.quantityKg * sale.unitPrice : 0;
-  const discountRate = remote.discountRate ?? 0;
-  const totalAmount = round2(baseAmount * (1 - discountRate));
-  return {
-    id: remote.id,
-    salesOrderId: remote.salesOrderId,
-    customerId: sale?.customerId ?? sale?.customer ?? remote.salesOrderId,
-    channel: sale?.channel ?? "渠道",
-    status: normalizeQuoteStatus(remote.status),
-    version: remote.version ?? 1,
-    validFrom,
-    validTo,
-    totalAmount: totalAmount || baseAmount
-  };
+// 更新购物车
+const updateCart = () => {
+  cart.value = cart.value.filter(item => item.quantityKg > 0);
 };
 
-const quoteStatusCopy: Record<QuoteStatus, string> = {
-  draft: "草稿",
-  sent: "已发送",
-  accepted: "已接受",
-  rejected: "已拒绝",
-  expired: "已过期"
+// 删除商品
+const removeFromCart = (idx: number) => {
+  cart.value.splice(idx, 1);
 };
 
-const syncEnterpriseQuotes = (list: QuoteDisplay[]) => {
-  enterpriseQuotes.value = list.map((quote) => ({
-    id: quote.id,
-    salesOrderId: quote.salesOrderId,
-    customerId: quote.customerId,
-    channel: quote.channel,
-    status: quote.status,
-    version: quote.version,
-    validFrom: quote.validFrom,
-    validTo: quote.validTo,
-    totalAmount: quote.totalAmount,
-    lines: [
-      {
-        productId: "remote",
-        quantityKg: 0,
-        unitPrice: quote.totalAmount,
-        discountPercent: 0
-      }
-    ]
-  })) as SalesQuote[];
+// 清空购物车
+const clearCart = () => {
+  if (confirm("确定要清空购物车吗？")) {
+    cart.value = [];
+    currentMember.value = null;
+  }
 };
 
-let quoteRequestId = 0;
-const loadQuotes = async () => {
-  if (!sales.value.length) {
-    quotes.value = [];
-    quotesError.value = null;
-    quotesLoading.value = false;
-    syncEnterpriseQuotes([]);
+// 挂单
+const holdOrder = () => {
+  if (cart.value.length === 0) {
+    alert("购物车为空");
     return;
   }
-  const requestId = ++quoteRequestId;
-  quotesLoading.value = true;
-  quotesError.value = null;
+  alert(`已挂单，共 ${cart.value.length} 件商品，金额 ¥${formatNumber(totalAmount.value)}`);
+  clearCart();
+};
+
+// 结算
+const checkout = async () => {
+  if (cart.value.length === 0) {
+    alert("购物车为空");
+    return;
+  }
+
   try {
-    const fetchTasks = sales.value.map((sale) =>
-      dataGateway
-        .listQuotes(sale.id)
-        .then((remoteQuotes) => remoteQuotes.map((remote) => normalizeQuote(remote, sale)))
-    );
-    const fetched = await Promise.all(fetchTasks);
-    if (quoteRequestId !== requestId) return;
-    const normalized = fetched.flat().sort((a, b) => b.validTo.localeCompare(a.validTo));
-    quotes.value = normalized;
-    syncEnterpriseQuotes(normalized);
+    // TODO: 调用数据网关保存销售单
+    alert(`结算成功！金额: ¥${formatNumber(totalAmount.value)}`);
+    clearCart();
   } catch (err) {
-    if (quoteRequestId !== requestId) return;
-    quotesError.value = err instanceof Error ? err.message : "报价数据加载失败";
-    quotes.value = [];
-    syncEnterpriseQuotes([]);
-  } finally {
-    if (quoteRequestId === requestId) {
-      quotesLoading.value = false;
-    }
+    alert("结算失败: " + (err instanceof Error ? err.message : "未知错误"));
   }
 };
 
-watch(
-  sales,
-  (list) => {
-    if (!list.length) {
-      quotes.value = [];
-      syncEnterpriseQuotes([]);
-      return;
-    }
-    loadQuotes();
-  },
-  { immediate: true }
-);
-
-const contractStatusCopy: Record<ContractStatus, string> = {
-  pending: "待生效",
-  active: "执行中",
-  closed: "已结束"
+// 会员搜索
+const searchMember = async () => {
+  if (!memberSearchInput.value) return;
+  
+  try {
+    const results = await dataGateway.searchMembers(memberSearchInput.value);
+    memberSearchResults.value = results;
+  } catch (err) {
+    alert("搜索会员失败: " + (err instanceof Error ? err.message : "未知错误"));
+  }
 };
 
-const quoteStatuses = [
-  { key: "sent", label: "发送" },
-  { key: "accepted", label: "接受" },
-  { key: "rejected", label: "拒绝" }
-] as const;
+// 选择会员
+const selectMember = (member: MemberProfile) => {
+  currentMember.value = member;
+  showMemberDialog.value = false;
+  memberSearchInput.value = "";
+  memberSearchResults.value = [];
+};
 
-const filteredSales = computed(() =>
-  sales.value.filter((item) => {
-    const matchesKeyword = keyword.value
-      ? [item.customer, item.fruit].some((field) => field.includes(keyword.value))
-      : true;
-    const matchesPayment = paymentFilter.value === "all" || item.paymentMethod === paymentFilter.value;
-    return matchesKeyword && matchesPayment;
-  })
-);
+// 快捷键处理
+const handleKeyDown = (e: KeyboardEvent) => {
+  // Space: 结算
+  if (e.code === "Space" && !showMemberDialog.value) {
+    e.preventDefault();
+    checkout();
+  }
+  // Esc: 清空
+  if (e.code === "Escape") {
+    clearCart();
+  }
+  // F1: 会员弹窗
+  if (e.code === "F1") {
+    e.preventDefault();
+    showMemberDialog.value = !showMemberDialog.value;
+  }
+};
 
-const formatCurrency = (value: number) => `¥${value.toFixed(2)}`;
-const formatPercent = (value: number) => `${value.toFixed(1)}%`;
-
-const todayRevenue = computed(() => {
-  const today = new Date().toISOString().slice(0, 10);
-  return sales.value
-    .filter((item) => item.date === today)
-    .reduce((sum, item) => sum + item.quantityKg * item.unitPrice, 0);
+onMounted(() => {
+  window.addEventListener("keydown", handleKeyDown);
 });
 
-const pendingSales = computed(() => sales.value.filter((item) => item.status === "pending"));
-
-const averagePrice = computed(() => {
-  if (!sales.value.length) return 0;
-  const totalQty = sales.value.reduce((sum, item) => sum + item.quantityKg, 0);
-  const totalAmount = sales.value.reduce((sum, item) => sum + item.quantityKg * item.unitPrice, 0);
-  return totalAmount / (totalQty || 1);
+onUnmounted(() => {
+  window.removeEventListener("keydown", handleKeyDown);
 });
-
-const activeQuoteValue = computed(() =>
-  quotes.value
-    .filter((quote) => ["draft", "sent", "accepted"].includes(quote.status))
-    .reduce((sum, quote) => sum + quote.totalAmount, 0)
-);
-
-const quotePipeline = computed(() =>
-  quotes.value.filter((quote) => ["draft", "sent", "accepted"].includes(quote.status)).length
-);
-
-const contractedCustomers = computed(
-  () => new Set(contracts.value.filter((ctr) => ctr.status === "active").map((ctr) => ctr.customerId)).size
-);
-
-const activePromotionCount = computed(() => promotions.value.filter((promo) => promo.active).length);
-
-const canWriteSales = computed(() => auth.hasPermission("sales.write"));
-const canApproveSales = computed(() => auth.hasPermission("sales.approval"));
-
-const customerName = (id: string) => partners.value.find((partner) => partner.id === id)?.name ?? id ?? "-";
-
-const markCollected = async (id: string) => {
-  if (!canWriteSales.value) return;
-  try {
-    await store.settleSale(id);
-    notifySuccess("销售单已确认收款");
-  } catch (err) {
-    notifyError(err instanceof Error ? err.message : "确认收款失败");
-  }
-};
-
-const handleQuoteStatus = async (id: string, status: QuoteStatus) => {
-  if (!canApproveSales.value) return;
-  try {
-    await dataGateway.updateQuoteStatus(id, status);
-    await loadQuotes();
-    notifySuccess("报价状态已更新");
-  } catch (err) {
-    notifyError(err instanceof Error ? err.message : "更新失败");
-  }
-};
-
-const handleActivateContract = async (quoteId: string) => {
-  if (!canApproveSales.value) return;
-  try {
-    await enterprise.activateContractFromQuote(quoteId, "transfer");
-    notifySuccess("已生成合同草稿");
-  } catch (err) {
-    notifyError(err instanceof Error ? err.message : "生成失败");
-  }
-};
-
-const togglePromotion = async (id: string) => {
-  if (!canApproveSales.value) return;
-  try {
-    await enterprise.togglePromotion(id);
-    notifySuccess("促销状态已切换");
-  } catch (err) {
-    notifyError(err instanceof Error ? err.message : "操作失败");
-  }
-};
-
-import { exportToPdf } from "../utils/exportUtils";
-
-// ...existing code...
-
-const exportSales = () => {
-  const header = ["单号", "客户", "品类", "数量", "金额", "支付方式", "状态", "日期"];
-  const rows = sales.value.map((item) => [
-    item.id,
-    item.customer,
-    item.fruit,
-    `${item.quantityKg}kg`,
-    (item.quantityKg * item.unitPrice).toFixed(2),
-    paymentMap[item.paymentMethod],
-    item.status === "settled" ? "已收款" : "待收款",
-    item.date
-  ]);
-  const csv = [header, ...rows]
-    .map((line) => line.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(","))
-    .join("\n");
-  const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = `sales-${new Date().toISOString().slice(0, 10)}.csv`;
-  link.click();
-  URL.revokeObjectURL(url);
-};
-
-const exportSalesPdf = () => {
-  const header = ["单号", "客户", "品类", "数量", "金额", "支付方式", "状态", "日期"];
-  const rows = sales.value.map((item) => [
-    item.id,
-    item.customer,
-    item.fruit,
-    `${item.quantityKg}kg`,
-    (item.quantityKg * item.unitPrice).toFixed(2),
-    paymentMap[item.paymentMethod],
-    item.status === "settled" ? "已收款" : "待收款",
-    item.date
-  ]);
-  exportToPdf("销售报表", header, rows, `sales-${new Date().toISOString().slice(0, 10)}.pdf`);
-};
-
-const generateDemoSale = async () => {
-  if (!canWriteSales.value) return;
-  const customers = ["社区团购B站", "商超渠道", "线上商城"];
-  const fruits = ["牛油果", "榴莲", "蓝莓"];
-  try {
-    await store.addSale({
-      date: new Date().toISOString().slice(0, 10),
-      customer: customers[Math.floor(Math.random() * customers.length)],
-      fruit: fruits[Math.floor(Math.random() * fruits.length)],
-      quantityKg: 5 + Math.round(Math.random() * 20),
-      unitPrice: Math.round((25 + Math.random() * 40) * 10) / 10,
-      paymentMethod: "mobile",
-      status: "pending"
-    });
-    notifySuccess("测试销售单已创建");
-  } catch (err) {
-    notifyError(err instanceof Error ? err.message : "创建销售单失败");
-  }
-};
 </script>
 
 <style scoped>
-.page {
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
+.sales-view {
+  display: grid;
+  grid-template-columns: 1fr 400px;
+  gap: 16px;
+  padding: 16px;
+  min-height: 100vh;
+  background: #f5f5f5;
 }
 
-.page__header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+.product-panel {
+  background: white;
+  border-radius: 8px;
+  padding: 16px;
+  overflow-y: auto;
 }
 
-.page__actions {
-  display: flex;
+.product-panel h2 {
+  margin: 0 0 16px 0;
+  font-size: 18px;
+}
+
+.product-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
   gap: 12px;
 }
 
-button.primary,
-button.ghost {
-  border: none;
-  border-radius: 999px;
-  padding: 10px 18px;
+.product-card {
+  background: #f9f9f9;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 8px;
   cursor: pointer;
+  transition: all 0.2s;
 }
 
-button.primary {
-  background: #1d4ed8;
-  color: white;
+.product-card:hover {
+  background: #e3f2fd;
+  border-color: #2196f3;
+  transform: translateY(-2px);
 }
 
-button.primary:disabled {
-  background: #94a3b8;
-  cursor: not-allowed;
+.product-image {
+  width: 100%;
+  aspect-ratio: 1;
+  background: #efefef;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 8px;
 }
 
-button.ghost {
-  background: rgba(37, 99, 235, 0.15);
-  color: #1d4ed8;
+.placeholder {
+  font-size: 24px;
+  color: #999;
 }
 
-.stats-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+.product-info {
+  font-size: 12px;
+}
+
+.product-name {
+  margin: 0;
+  font-weight: bold;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.product-spec {
+  margin: 4px 0;
+  color: #666;
+}
+
+.product-price {
+  margin: 4px 0 0 0;
+  color: #d32f2f;
+  font-weight: bold;
+}
+
+.out-of-stock {
+  color: #999;
+}
+
+.checkout-panel {
+  background: white;
+  border-radius: 8px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
   gap: 16px;
 }
 
-.stat {
-  background: white;
-  border-radius: 16px;
-  padding: 18px;
-  box-shadow: 0 10px 25px rgba(15, 23, 42, 0.07);
+.member-info {
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  padding: 12px;
 }
 
-.stat strong {
-  display: block;
-  font-size: 24px;
-  margin: 6px 0;
-}
-
-.stat small {
-  color: #94a3b8;
-}
-
-.layout {
-  display: grid;
-  grid-template-columns: 1.3fr 1fr;
-  gap: 18px;
-}
-
-.panel {
-  background: white;
-  border-radius: 16px;
-  padding: 20px;
-  box-shadow: 0 10px 25px rgba(15, 23, 42, 0.06);
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.panel__header {
+.member-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding-bottom: 0.5rem;
-  border-bottom: 1px solid #e2e8f0;
+  margin-bottom: 8px;
 }
 
-.filters {
-  display: flex;
-  gap: 12px;
-}
-
-.filters input,
-.filters select {
-  flex: 1;
-  border-radius: 10px;
-  border: 1px solid #cbd5f5;
-  padding: 10px 12px;
-}
-
-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-th,
-td {
-  text-align: left;
-  padding: 10px 8px;
-  border-bottom: 1px solid #e2e8f0;
+.member-header h3 {
+  margin: 0;
   font-size: 14px;
 }
 
-.chip {
-  padding: 4px 10px;
-  border-radius: 999px;
-  font-size: 12px;
-  background: #f1f5f9;
-  color: #475569;
-}
-
-.chip.pending {
-  background: rgba(248, 113, 113, 0.15);
-  color: #dc2626;
-}
-
-.chip.done {
-  background: rgba(16, 185, 129, 0.15);
-  color: #059669;
-}
-
-.chip[class*="status-"] {
-  text-transform: capitalize;
-}
-
-.mini {
-  border: none;
-  border-radius: 8px;
+.btn-member {
   padding: 6px 12px;
-  background: #0ea5e9;
+  background: #2196f3;
   color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.member-card {
+  background: #f5f5f5;
+  padding: 8px;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.member-card p {
+  margin: 4px 0;
+}
+
+.member-card.empty {
+  color: #999;
+}
+
+.cart-section {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.cart-section h3 {
+  margin: 0;
+  padding: 12px;
+  background: #f5f5f5;
+  border-bottom: 1px solid #e0e0e0;
+  font-size: 14px;
+}
+
+.cart-items {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+}
+
+.empty-cart {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: #999;
+}
+
+.cart-item {
+  background: #f9f9f9;
+  padding: 8px;
+  border-radius: 4px;
+  margin-bottom: 8px;
+  font-size: 12px;
+}
+
+.cart-item-info {
+  margin-bottom: 6px;
+}
+
+.cart-item-info p {
+  margin: 0;
+}
+
+.price {
+  color: #d32f2f;
+}
+
+.cart-item-actions {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.qty-input {
+  width: 50px;
+  padding: 4px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.total {
+  flex: 1;
+  color: #d32f2f;
+  font-weight: bold;
+}
+
+.btn-delete {
+  padding: 4px 8px;
+  background: #f44336;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 10px;
+}
+
+.btn-hold {
+  padding: 12px;
+  background: #ff9800;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: bold;
+}
+
+.settlement-section {
+  border-top: 2px solid #e0e0e0;
+  padding-top: 12px;
+}
+
+.total-display {
+  text-align: center;
+  margin-bottom: 16px;
+}
+
+.total-display p:first-child {
+  margin: 0;
+  font-size: 12px;
+  color: #666;
+}
+
+.amount {
+  margin: 8px 0 0 0;
+  font-size: 32px;
+  font-weight: bold;
+  color: #d32f2f;
+}
+
+.payment-methods {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 12px;
+  font-size: 12px;
+}
+
+.payment-methods label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   cursor: pointer;
 }
 
-.mini.ghost {
-  background: rgba(14, 165, 233, 0.15);
-  color: #0284c7;
+.payment-methods input {
+  cursor: pointer;
 }
 
-.mini:disabled {
-  background: #bfdbfe;
-  color: #64748b;
+.btn-checkout {
+  padding: 20px;
+  font-size: 18px;
+  font-weight: bold;
+  border-radius: 4px;
+  border: none;
+  cursor: pointer;
+  margin-bottom: 8px;
+}
+
+.btn-checkout.primary {
+  background: #4caf50;
+  color: white;
+}
+
+.btn-checkout:disabled {
+  background: #ccc;
   cursor: not-allowed;
 }
 
-.advanced-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-  gap: 18px;
+.btn-clear {
+  width: 100%;
+  padding: 12px;
+  background: #f44336;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
 }
 
-.actions {
+/* 会员弹窗 */
+.member-dialog {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: white;
+  border: none;
+  border-radius: 8px;
+  padding: 0;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+  z-index: 1000;
+}
+
+.member-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.dialog-content {
+  padding: 20px;
+  width: 400px;
+}
+
+.dialog-content h3 {
+  margin: 0 0 16px 0;
+}
+
+.dialog-content input {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+  margin-bottom: 12px;
+}
+
+.member-list {
+  max-height: 300px;
+  overflow-y: auto;
+  margin-bottom: 12px;
+}
+
+.member-item {
+  padding: 10px;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  margin-bottom: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.member-item:hover {
+  background: #e3f2fd;
+  border-color: #2196f3;
+}
+
+.member-item p {
+  margin: 0;
+  font-size: 12px;
+}
+
+.dialog-actions {
   display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
+  gap: 8px;
 }
 
-.empty {
-  text-align: center;
-  color: #94a3b8;
+.dialog-actions button {
+  flex: 1;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
 }
 
-.warning {
-  margin: 0;
-  padding: 10px 14px;
-  border-radius: 12px;
-  background: rgba(248, 113, 113, 0.12);
-  color: #b91c1c;
+.dialog-actions button:last-child {
+  background: #2196f3;
+  color: white;
+  border: none;
 }
 
-.info {
-  margin: 0;
-  padding: 10px 14px;
-  border-radius: 12px;
-  background: rgba(59, 130, 246, 0.08);
-  color: #1d4ed8;
-}
-
-@media (max-width: 1100px) {
-  .layout {
+@media (max-width: 1280px) {
+  .sales-view {
     grid-template-columns: 1fr;
+  }
+
+  .product-grid {
+    grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
   }
 }
 </style>

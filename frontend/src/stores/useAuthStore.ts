@@ -1,7 +1,7 @@
 import { computed, ref } from "vue";
 import { defineStore } from "pinia";
 import { dataGateway } from "../services/dataGateway";
-import type { PermissionKey, StoreId, StoreProfile, UserProfile } from "./types";
+import type { PermissionKey, StoreId, StoreProfile, UserProfile, RegisterPayload } from "./types";
 
 interface Credentials {
   username: string;
@@ -85,6 +85,24 @@ export const useAuthStore = defineStore("auth", () => {
     }
   };
 
+  const register = async (payload: RegisterPayload) => {
+    loading.value = true;
+    error.value = null;
+    try {
+      const response = await dataGateway.register(payload);
+      if (response.success) {
+        return response;
+      } else {
+        throw new Error(response.message);
+      }
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : "注册失败，请稍后再试";
+      throw err;
+    } finally {
+      loading.value = false;
+    }
+  };
+
   const selectStore = (storeId: StoreId) => {
     if (!stores.value.some((store) => store.id === storeId)) return;
     if (activeStoreId.value === storeId) return;
@@ -117,6 +135,7 @@ export const useAuthStore = defineStore("auth", () => {
     hasPermission,
     selectStore,
     login,
+    register,
     logout
   };
 });

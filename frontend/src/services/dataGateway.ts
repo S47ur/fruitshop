@@ -13,14 +13,15 @@ import type {
   PermissionKey,
   Purchase,
   PurchaseInvoice,
-  QuoteStatus,
   Sale,
-  SalesQuote,
   SettlementStatus,
   StockAdjustment,
   StoreId,
   StoreProfile,
-  UserProfile
+  UserProfile,
+  RegisterPayload,
+  RegisterResponse,
+  MemberProfile
 } from "../stores/types";
 
 const baseURL = import.meta.env.VITE_API_BASE_URL as string | undefined;
@@ -57,16 +58,6 @@ type RemotePurchasePayload = {
     unitCost: number;
     batchRequired: boolean;
   }>;
-};
-
-type RemoteQuote = {
-  id: string;
-  salesOrderId: string;
-  version: number;
-  validUntil: string;
-  status: string;
-  discountRate?: number;
-  remarks?: string;
 };
 
 type RemoteInvoice = {
@@ -164,16 +155,6 @@ const mapPurchaseOrder = (order: RemotePurchaseOrder): Purchase => {
   };
 };
 
-const mapQuoteToRemote = (quote: SalesQuote, fallbackSalesId: string): RemoteQuote => ({
-  id: quote.id,
-  salesOrderId: quote.salesOrderId || fallbackSalesId,
-  version: quote.version,
-  validUntil: quote.validTo,
-  status: quote.status,
-  discountRate: quote.discountRate,
-  remarks: quote.remarks
-});
-
 const mapInvoiceToRemote = (invoice: PurchaseInvoice, fallbackStoreId: StoreId): RemoteInvoice => ({
   id: invoice.id,
   storeId: invoice.storeId ?? fallbackStoreId,
@@ -228,6 +209,12 @@ export const dataGateway = {
     return handleHttp<LoginResponse>(
       () => httpClient!.post<ApiEnvelope<LoginResponse>>("/auth/login", payload),
       () => mockBackend.login(payload.username, payload.password)
+    );
+  },
+  register(payload: RegisterPayload) {
+    return handleHttp<RegisterResponse>(
+      () => httpClient!.post<ApiEnvelope<RegisterResponse>>("/auth/register", payload),
+      () => mockBackend.register(payload.username, payload.password, payload.name, payload.inviteCode)
     );
   },
   listPurchases(storeId: StoreId) {
@@ -290,30 +277,6 @@ export const dataGateway = {
       () => mockBackend.updateReorderLevel(inventoryId, level)
     );
   },
-  listQuotes(salesId: string) {
-    return handleHttp<RemoteQuote[]>(
-      () => httpClient!.get<ApiEnvelope<RemoteQuote[]>>(`/sales/${salesId}/quotes`),
-      () =>
-        mockBackend
-          .listQuotesBySales(salesId)
-          .then((quotes) => quotes.map((quote) => mapQuoteToRemote(quote, salesId)))
-    );
-  },
-  createQuote(salesId: string, payload: { validUntil: string; discountRate: number; remarks?: string }) {
-    return handleHttp<RemoteQuote>(
-      () => httpClient!.post<ApiEnvelope<RemoteQuote>>(`/sales/${salesId}/quotes`, payload),
-      () => mockBackend.createQuote(salesId, payload).then((quote) => mapQuoteToRemote(quote, salesId))
-    );
-  },
-  updateQuoteStatus(quoteId: string, status: QuoteStatus) {
-    return handleHttp<RemoteQuote | undefined>(
-      () => httpClient!.patch<ApiEnvelope<RemoteQuote>>(`/quotes/${quoteId}`, { status }),
-      () =>
-        mockBackend.updateQuoteStatus(quoteId, status).then((quote) =>
-          quote ? mapQuoteToRemote(quote, quote.salesOrderId) : undefined
-        )
-    );
-  },
   createAdjustment(
     inventoryId: string,
     payload: { reason: string; deltaKg: number; createdBy: string }
@@ -354,6 +317,18 @@ export const dataGateway = {
         mockBackend
           .updateParameter(key, value)
           .then((param) => mapParameterToRemote(param ?? { key, label: key, value, description: "" }, key, value))
+    );
+  },
+  searchMembers(keyword: string) {
+    return handleHttp<MemberProfile[]>(
+      () => httpClient!.get<ApiEnvelope<MemberProfile[]>>(`/members/search?keyword=${encodeURIComponent(keyword)}`),
+      () => mockBackend.searchMembers(keyword)
+    );
+  },
+  getMember(memberId: string) {
+    return handleHttp<MemberProfile | undefined>(
+      () => httpClient!.get<ApiEnvelope<MemberProfile>>(`/members/${memberId}`),
+      () => mockBackend.getMember(memberId)
     );
   },
   fetchEnterpriseSnapshot() {

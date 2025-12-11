@@ -1,4 +1,4 @@
-export type PaymentMethod = "cash" | "card" | "mobile" | "transfer";
+export type PaymentMethod = "cash" | "card" | "mobile" | "transfer" | "balance" | "points";
 
 export type SettlementStatus = "pending" | "settled";
 
@@ -11,7 +11,7 @@ export interface StoreProfile {
   code: string;
 }
 
-export type UserRole = "owner" | "manager" | "cashier" | "auditor";
+export type UserRole = "ROLE_OWNER" | "ROLE_MANAGER" | "ROLE_CASHIER" | "ROLE_AUDITOR";
 
 export type PermissionKey =
   | "procurement.write"
@@ -32,6 +32,19 @@ export interface UserProfile {
   name: string;
   role: UserRole;
   email: string;
+}
+
+export interface RegisterPayload {
+  username: string;
+  password: string;
+  name: string;
+  inviteCode: string;
+}
+
+export interface RegisterResponse {
+  success: boolean;
+  message: string;
+  user?: UserProfile;
 }
 
 export interface Purchase {
@@ -125,13 +138,22 @@ export interface PartnerProfile {
   name: string;
   contact: string;
   phone: string;
-  creditScore: number;
-  paymentTermDays: number;
   settlementMethod: PaymentMethod;
   outstandingAmount: number;
   totalVolumeKg: number;
   preferred: boolean;
   historyNotes: string;
+}
+
+export interface MemberProfile {
+  id: string;
+  name: string;
+  phone: string;
+  balance: number;
+  points: number;
+  level: 1 | 2 | 3; // 铜牌、银牌、金牌
+  totalSpend: number;
+  joinDate: string;
 }
 
 export interface WarehouseZone {
@@ -213,44 +235,6 @@ export interface PurchaseInvoice {
   taxAmount: number;
   dueDate: string;
   status: InvoiceStatus;
-}
-
-export type QuoteStatus = "draft" | "sent" | "accepted" | "rejected" | "expired";
-
-export interface QuoteLine {
-  productId: string;
-  quantityKg: number;
-  unitPrice: number;
-  discountPercent: number;
-}
-
-export interface SalesQuote {
-  id: string;
-  salesOrderId: string;
-  customerId: string;
-  channel: string;
-  status: QuoteStatus;
-  version: number;
-  validFrom: string;
-  validTo: string;
-  totalAmount: number;
-  lines: QuoteLine[];
-  remarks?: string;
-  discountRate?: number;
-}
-
-export type ContractStatus = "pending" | "active" | "closed";
-
-export interface SalesContract {
-  id: string;
-  quoteId: string;
-  customerId: string;
-  channel: string;
-  ratePlan: string;
-  startDate: string;
-  endDate: string;
-  settlementMethod: PaymentMethod;
-  status: ContractStatus;
 }
 
 export type PromotionType = "bundle" | "discount" | "member" | "rebate";

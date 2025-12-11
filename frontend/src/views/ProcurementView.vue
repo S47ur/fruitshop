@@ -115,7 +115,6 @@
               </div>
               <div class="card-row faint">
                 <span>到货 {{ order.expectedDate }}</span>
-                <span>账期 {{ order.paymentTermDays }} 天</span>
               </div>
               <ul>
                 <li v-for="line in order.lines" :key="line.productId">

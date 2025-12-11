@@ -10,8 +10,19 @@
       </ul>
     </section>
     <section class="panel">
-      <p class="panel__title">账户登录</p>
+      <div class="panel__title-row">
+        <p class="panel__title">账户登录</p>
+        <button type="button" class="text-link" @click="goRegister">注册新账号</button>
+      </div>
       <form @submit.prevent="handleSubmit">
+        <label>
+          预置账号
+          <select v-model="selectedPreset" @change="applyPreset">
+            <option v-for="preset in presets" :key="preset.value" :value="preset.value">
+              {{ preset.label }}
+            </option>
+          </select>
+        </label>
         <label>
           账号
           <input v-model.trim="form.username" placeholder="fruitboss" autocomplete="username" />
@@ -37,12 +48,19 @@
 </template>
 
 <script setup lang="ts">
-import { reactive } from "vue";
+import { reactive, ref } from "vue";
 import { useRouter } from "vue-router";
 import { useAuthStore } from "../stores/useAuthStore";
 
 const router = useRouter();
 const auth = useAuthStore();
+
+const presets = [
+  { value: "", label: "选择预置账号" },
+  { value: "fruitboss", label: "fruitboss / 123456 · 店主", username: "fruitboss", password: "123456" },
+  { value: "cashier", label: "cashier / 888888 · 收银", username: "cashier", password: "888888" },
+  { value: "admin", label: "admin / admin123 · 店主", username: "admin", password: "admin123" }
+];
 
 const form = reactive({
   username: "",
@@ -50,9 +68,23 @@ const form = reactive({
   remember: true
 });
 
+const selectedPreset = ref("");
+
+const applyPreset = () => {
+  const preset = presets.find((p) => p.value === selectedPreset.value && p.username);
+  if (!preset) return;
+  form.username = preset.username as string;
+  form.password = preset.password as string;
+};
+
 const fillDemo = () => {
-  form.username = "fruitboss";
-  form.password = "123456";
+  selectedPreset.value = "fruitboss";
+  applyPreset();
+};
+
+const goRegister = () => {
+  const redirect = router.currentRoute.value.fullPath;
+  router.push({ path: "/register", query: { redirect } });
 };
 
 const handleSubmit = async () => {
@@ -104,6 +136,13 @@ const handleSubmit = async () => {
   box-shadow: 0 30px 60px rgba(15, 23, 42, 0.25);
 }
 
+.panel__title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
 .panel__title {
   font-size: 20px;
   font-weight: 600;
@@ -130,6 +169,14 @@ input:not([type]) {
   border: 1px solid #e2e8f0;
   padding: 12px;
   font-size: 16px;
+}
+
+select {
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  padding: 12px;
+  font-size: 16px;
+  background: white;
 }
 
 .form-foot {
@@ -159,6 +206,15 @@ button.ghost {
   border: 1px solid rgba(37, 99, 235, 0.4);
   border-radius: 999px;
   padding: 6px 14px;
+}
+
+button.text-link {
+  background: transparent;
+  border: none;
+  color: #2563eb;
+  font-size: 14px;
+  cursor: pointer;
+  padding: 6px 0;
 }
 
 .remember {

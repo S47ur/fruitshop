@@ -118,10 +118,6 @@
         <label>名称<input v-model.trim="partnerForm.name" required /></label>
         <label>联系人<input v-model.trim="partnerForm.contact" required /></label>
         <label>电话<input v-model.trim="partnerForm.phone" required /></label>
-        <div class="grid-2">
-          <label>信用分(1-5)<input v-model.number="partnerForm.credit" type="number" min="1" max="5" required /></label>
-          <label>账期(天)<input v-model.number="partnerForm.term" type="number" min="0" required /></label>
-        </div>
         <label>结算方式
           <select v-model="partnerForm.settlement">
             <option value="cash">现金</option>
@@ -140,10 +136,8 @@
               <th>名称</th>
               <th>类型</th>
               <th>联系人</th>
-              <th>信用</th>
-              <th>账期</th>
               <th>结算方式</th>
-              <th>授信占用</th>
+              <th>应付金额</th>
             </tr>
           </thead>
           <tbody>
@@ -154,13 +148,11 @@
               </td>
               <td>{{ partner.type === 'supplier' ? '供应商' : '客户' }}</td>
               <td>{{ partner.contact }}</td>
-              <td>{{ partner.creditScore }}/5</td>
-              <td>{{ partner.paymentTermDays }} 天</td>
               <td>{{ settlementCopy[partner.settlementMethod] }}</td>
               <td>¥{{ formatNumber(partner.outstandingAmount) }}</td>
             </tr>
             <tr v-if="!partners.length">
-              <td colspan="7" class="empty">暂无伙伴档案</td>
+              <td colspan="5" class="empty">暂无伙伴档案</td>
             </tr>
           </tbody>
         </table>
@@ -289,8 +281,6 @@ const partnerForm = reactive({
   name: "",
   contact: "",
   phone: "",
-  credit: 3,
-  term: 15,
   settlement: "transfer",
   notes: ""
 });
@@ -371,8 +361,6 @@ const handleAddPartner = async () => {
       name: partnerForm.name,
       contact: partnerForm.contact,
       phone: partnerForm.phone,
-      creditScore: Number(partnerForm.credit) || 1,
-      paymentTermDays: Number(partnerForm.term) || 0,
       settlementMethod: partnerForm.settlement as PaymentMethod,
       outstandingAmount: 0,
       totalVolumeKg: 0,

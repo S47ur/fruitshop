@@ -96,17 +96,16 @@ const showQuickActions = ref(false);
 const navItems = [
   { name: "dashboard", label: "经营驾驶舱", desc: "销售 & 库存概览", to: { name: "dashboard" } },
   { name: "procurement", label: "采购管理", desc: "供应商与到货", to: { name: "procurement" } },
-  { name: "sales", label: "销售管理", desc: "零售与团购", to: { name: "sales" } },
+  { name: "sales", label: "销售管理", desc: "POS收银台", to: { name: "sales" } },
   { name: "inventory", label: "库存预警", desc: "安全库存 & 补货", to: { name: "inventory" } },
-  { name: "finance", label: "财务报表", desc: "资金拆解", to: { name: "finance" } },
-  { name: "system", label: "系统中心", desc: "权限 · 集成", to: { name: "system" } }
+  { name: "finance", label: "财务报表", desc: "资金拆解", to: { name: "finance" } }
 ];
 
 const roleLabels: Record<UserRole, string> = {
-  owner: "店主",
-  manager: "店长",
-  cashier: "收银",
-  auditor: "稽核"
+  "ROLE_OWNER": "店主",
+  "ROLE_MANAGER": "店长",
+  "ROLE_CASHIER": "收银",
+  "ROLE_AUDITOR": "稽核"
 };
 
 const quickActionConfigs: Array<{

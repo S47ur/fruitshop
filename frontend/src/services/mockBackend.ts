@@ -17,15 +17,14 @@ import type {
   PurchaseInvoice,
   RoleMatrixEntry,
   Sale,
-  SalesContract,
-  SalesQuote,
   SettlementStatus,
   StockAdjustment,
   StoreId,
   StoreProfile,
   TransferRequest,
   UserRole,
-  IntegrationEndpoint
+  IntegrationEndpoint,
+  MemberProfile
 } from "../stores/types";
 
 interface BackendUser {
@@ -41,7 +40,6 @@ interface BackendState {
   purchases: Purchase[];
   sales: Sale[];
   inventory: InventoryItem[];
-  quotes: SalesQuote[];
   invoices: PurchaseInvoice[];
   adjustments: StockAdjustment[];
   parameters: ParameterConfig[];
@@ -49,10 +47,10 @@ interface BackendState {
   stores: StoreProfile[];
   batches: InventoryBatch[];
   transfers: TransferRequest[];
-  contracts: SalesContract[];
   promotions: PromotionRule[];
   channelConfigs: ChannelConfig[];
   aging: AgingBucket[];
+  members: MemberProfile[];
   // Enterprise Data
   products: ProductMaster[];
   partners: PartnerProfile[];
@@ -71,6 +69,13 @@ const seedStores: StoreProfile[] = [
   { id: "store-wh", name: "武汉华南城", city: "武汉", code: "WH03" }
 ];
 
+const seedMembers: MemberProfile[] = [
+  { id: "member-1", name: "张三", phone: "13800000001", balance: 500, points: 1200, level: 2, totalSpend: 5000, joinDate: "2025-06-01" },
+  { id: "member-2", name: "李四", phone: "13800000002", balance: 1000, points: 2500, level: 3, totalSpend: 15000, joinDate: "2025-01-15" },
+  { id: "member-3", name: "王五", phone: "13800000003", balance: 200, points: 800, level: 1, totalSpend: 2000, joinDate: "2025-11-01" },
+  { id: "member-4", name: "赵六", phone: "13800000004", balance: 0, points: 100, level: 1, totalSpend: 500, joinDate: "2025-12-01" }
+];
+
 const seedProducts: ProductMaster[] = [
   { id: "prod-1", name: "麒麟西瓜", category: "瓜果", barcode: "6900001", spec: "5kg/个", unit: "个", conversions: [], taxRate: 0.09, pricing: { base: 15, min: 10, max: 30, currency: "CNY" }, tags: ["热销"], status: "active" },
   { id: "prod-2", name: "金煌芒果", category: "热带水果", barcode: "6900002", spec: "10kg/箱", unit: "箱", conversions: [], taxRate: 0.09, pricing: { base: 80, min: 60, max: 120, currency: "CNY" }, tags: [], status: "active" },
@@ -80,17 +85,17 @@ const seedProducts: ProductMaster[] = [
 ];
 
 const seedPartners: PartnerProfile[] = [
-  { id: "supp-1", type: "supplier", name: "湘南果农联盟", contact: "张三", phone: "13800000001", creditScore: 90, paymentTermDays: 30, settlementMethod: "transfer", outstandingAmount: 0, totalVolumeKg: 5000, preferred: true, historyNotes: "" },
-  { id: "supp-2", type: "supplier", name: "海南芒果社", contact: "李四", phone: "13800000002", creditScore: 85, paymentTermDays: 15, settlementMethod: "transfer", outstandingAmount: 0, totalVolumeKg: 2000, preferred: false, historyNotes: "" },
-  { id: "cust-1", type: "customer", name: "社区团购A站", contact: "王五", phone: "13900000001", creditScore: 95, paymentTermDays: 7, settlementMethod: "mobile", outstandingAmount: 0, totalVolumeKg: 1000, preferred: true, historyNotes: "" },
-  { id: "cust-2", type: "customer", name: "鲜丰自营堂食", contact: "赵六", phone: "13900000002", creditScore: 100, paymentTermDays: 0, settlementMethod: "cash", outstandingAmount: 0, totalVolumeKg: 500, preferred: false, historyNotes: "" }
+  { id: "supp-1", type: "supplier", name: "湘南果农联盟", contact: "张三", phone: "13800000001", settlementMethod: "transfer", outstandingAmount: 0, totalVolumeKg: 5000, preferred: true, historyNotes: "" },
+  { id: "supp-2", type: "supplier", name: "海南芒果社", contact: "李四", phone: "13800000002", settlementMethod: "transfer", outstandingAmount: 0, totalVolumeKg: 2000, preferred: false, historyNotes: "" },
+  { id: "cust-1", type: "customer", name: "社区团购A站", contact: "王五", phone: "13900000001", settlementMethod: "mobile", outstandingAmount: 0, totalVolumeKg: 1000, preferred: true, historyNotes: "" },
+  { id: "cust-2", type: "customer", name: "鲜丰自营堂食", contact: "赵六", phone: "13900000002", settlementMethod: "cash", outstandingAmount: 0, totalVolumeKg: 500, preferred: false, historyNotes: "" }
 ];
 
 const seedRoleMatrix: RoleMatrixEntry[] = [
-  { role: "owner", permissions: ["procurement.write", "sales.write", "inventory.write", "finance.write", "org.switch-store", "system.manage", "master.write", "procurement.approval", "sales.approval", "inventory.adjust", "finance.risk", "audit.read"], dataDomains: ["all"] },
-  { role: "manager", permissions: ["procurement.write", "sales.write", "inventory.write", "finance.write", "inventory.adjust", "sales.approval"], dataDomains: ["store"] },
-  { role: "cashier", permissions: ["sales.write"], dataDomains: ["store"] },
-  { role: "auditor", permissions: ["audit.read", "finance.write"], dataDomains: ["all"] }
+  { role: "ROLE_OWNER", permissions: ["procurement.write", "sales.write", "inventory.write", "finance.write", "org.switch-store", "system.manage", "master.write", "procurement.approval", "sales.approval", "inventory.adjust", "finance.risk", "audit.read"], dataDomains: ["all"] },
+  { role: "ROLE_MANAGER", permissions: ["procurement.write", "sales.write", "inventory.write", "finance.write", "inventory.adjust", "sales.approval"], dataDomains: ["store"] },
+  { role: "ROLE_CASHIER", permissions: ["sales.write"], dataDomains: ["store"] },
+  { role: "ROLE_AUDITOR", permissions: ["audit.read", "finance.write"], dataDomains: ["all"] }
 ];
 
 const seedApprovalFlows: ApprovalFlow[] = [
@@ -121,11 +126,6 @@ const seedBatches: InventoryBatch[] = [
 const seedTransfers: TransferRequest[] = [
   { id: "tr-1", fromWarehouseId: "store-sz", toWarehouseId: "store-cs", productId: "prod-1", quantityKg: 100, status: "in-transit", approver: "manager" },
   { id: "tr-2", fromWarehouseId: "store-wh", toWarehouseId: "store-sz", productId: "prod-3", quantityKg: 50, status: "approved", approver: "owner" }
-];
-
-const seedContracts: SalesContract[] = [
-  { id: "ctr-1", quoteId: "quote-1", customerId: "cust-1", channel: "批发", ratePlan: "大客户协议价", startDate: "2025-01-01", endDate: "2025-12-31", settlementMethod: "transfer", status: "active" },
-  { id: "ctr-2", quoteId: "quote-2", customerId: "cust-2", channel: "直营", ratePlan: "内部调拨价", startDate: "2025-06-01", endDate: "2026-05-31", settlementMethod: "transfer", status: "active" }
 ];
 
 const seedPromotions: PromotionRule[] = [
@@ -198,31 +198,6 @@ const makeSale = (idx: number): Sale => {
 const seedPurchases = Array.from({ length: 120 }).map((_, i) => makePurchase(i)).sort((a, b) => b.date.localeCompare(a.date));
 const seedSales = Array.from({ length: 300 }).map((_, i) => makeSale(i)).sort((a, b) => b.date.localeCompare(a.date));
 
-const seedQuotes: SalesQuote[] = seedSales.slice(0, 20).map((sale, index) => {
-  const amount = sale.quantityKg * sale.unitPrice;
-  return {
-    id: `quote-${index}`,
-    salesOrderId: sale.id,
-    customerId: sale.customerId || "cust-1",
-    channel: sale.channel ?? "批发",
-    status: index % 3 === 0 ? "accepted" : index % 2 === 0 ? "sent" : "draft",
-    version: index + 1,
-    validFrom: sale.date,
-    validTo: `2025-12-${String(5 + (index % 20)).padStart(2, "0")}`,
-    totalAmount: amount,
-    lines: [
-      {
-        productId: sale.fruit, // Should be ID but using name for simplicity in mock if needed, but let's try to match
-        quantityKg: sale.quantityKg,
-        unitPrice: sale.unitPrice,
-        discountPercent: index % 2 === 0 ? 5 : 0
-      }
-    ],
-    remarks: "系统自动生成报价",
-    discountRate: index % 2 === 0 ? 0.05 : 0
-  };
-});
-
 const seedInvoices: PurchaseInvoice[] = seedPurchases.slice(0, 40).map((purchase, index) => {
   const amount = purchase.quantityKg * purchase.unitCost;
   return {
@@ -278,10 +253,10 @@ const buildInventory = (): InventoryItem[] => {
 };
 
 const seedUsers: BackendUser[] = [
-  { username: "admin", password: "admin123", name: "系统管理员", role: "owner", email: "admin@fruitshop.com", stores: seedStores.map(s => s.id) },
-  { username: "fruitboss", password: "123456", name: "李掌柜", role: "owner", email: "boss@fruiterp.cn", stores: [seedStores[0].id, seedStores[1].id] },
-  { username: "cashier", password: "888888", name: "小柚", role: "cashier", email: "cashier@fruiterp.cn", stores: [seedStores[0].id] },
-  { username: "auditor", password: "000000", name: "王稽核", role: "auditor", email: "audit@fruiterp.cn", stores: [seedStores[2].id] }
+  { username: "admin", password: "admin123", name: "系统管理员", role: "ROLE_OWNER", email: "admin@fruitshop.com", stores: seedStores.map(s => s.id) },
+  { username: "fruitboss", password: "123456", name: "李掌柜", role: "ROLE_OWNER", email: "boss@fruiterp.cn", stores: [seedStores[0].id, seedStores[1].id] },
+  { username: "cashier", password: "888888", name: "小柚", role: "ROLE_CASHIER", email: "cashier@fruiterp.cn", stores: [seedStores[0].id] },
+  { username: "auditor", password: "000000", name: "王稽核", role: "ROLE_AUDITOR", email: "audit@fruiterp.cn", stores: [seedStores[2].id] }
 ];
 
 const delay = (ms = 320) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -297,7 +272,6 @@ class MockBackend {
         purchases: parsed.purchases ?? seedPurchases,
         sales: parsed.sales ?? seedSales,
         inventory: parsed.inventory ?? buildInventory(),
-        quotes: parsed.quotes ?? seedQuotes,
         invoices: parsed.invoices ?? seedInvoices,
         adjustments: parsed.adjustments ?? seedAdjustments,
         parameters: parsed.parameters ?? seedParameters,
@@ -305,10 +279,10 @@ class MockBackend {
         stores: parsed.stores ?? seedStores,
         batches: parsed.batches ?? seedBatches,
         transfers: parsed.transfers ?? seedTransfers,
-        contracts: parsed.contracts ?? seedContracts,
         promotions: parsed.promotions ?? seedPromotions,
         channelConfigs: parsed.channelConfigs ?? seedChannelConfigs,
         aging: parsed.aging ?? seedAging,
+        members: parsed.members ?? seedMembers,
         products: parsed.products ?? seedProducts,
         partners: parsed.partners ?? seedPartners,
         roleMatrix: parsed.roleMatrix ?? seedRoleMatrix,
@@ -322,7 +296,6 @@ class MockBackend {
         purchases: seedPurchases,
         sales: seedSales,
         inventory: buildInventory(),
-        quotes: seedQuotes,
         invoices: seedInvoices,
         adjustments: seedAdjustments,
         parameters: seedParameters,
@@ -330,10 +303,10 @@ class MockBackend {
         stores: seedStores,
         batches: seedBatches,
         transfers: seedTransfers,
-        contracts: seedContracts,
         promotions: seedPromotions,
         channelConfigs: seedChannelConfigs,
         aging: seedAging,
+        members: seedMembers,
         products: seedProducts,
         partners: seedPartners,
         roleMatrix: seedRoleMatrix,
@@ -376,6 +349,45 @@ class MockBackend {
     };
   }
 
+  async register(username: string, password: string, name: string, inviteCode: string) {
+    await delay();
+    
+    // 检查用户名是否已存在
+    if (this.state.users.some(user => user.username === username)) {
+      throw new Error("用户名已存在，请选择其他用户名");
+    }
+    
+    // 根据邀请码分配角色
+    let role: "ROLE_OWNER" | "ROLE_CASHIER" = "ROLE_CASHIER";
+    if (inviteCode === "ADMIN888") {
+      role = "ROLE_OWNER";
+    }
+    
+    // 创建新用户，默认分配第一个店铺
+    const newUser: BackendUser = {
+      username,
+      password,
+      name,
+      role,
+      email: `${username}@fruitshop.com`,
+      stores: [seedStores[0].id] // 默认分配深圳旗舰店
+    };
+    
+    this.state.users.push(newUser);
+    this.persist();
+    
+    return {
+      success: true,
+      message: "注册成功，请登录",
+      user: {
+        username: newUser.username,
+        name: newUser.name,
+        role: newUser.role,
+        email: newUser.email
+      }
+    };
+  }
+
   async getEnterpriseSnapshot() {
     await delay();
     return {
@@ -385,8 +397,6 @@ class MockBackend {
       purchaseOrders: [], // Advanced POs if needed
       shipments: [],
       invoices: this.state.invoices,
-      quotes: this.state.quotes,
-      contracts: this.state.contracts,
       promotions: this.state.promotions,
       channelConfigs: this.state.channelConfigs,
       batches: this.state.batches,
@@ -419,53 +429,28 @@ class MockBackend {
     return this.state.inventory.filter((item) => item.storeId === storeId);
   }
 
-  async listQuotesBySales(salesId: string) {
+  async searchMembers(keyword: string) {
     await delay();
-    return this.state.quotes.filter((quote) => quote.salesOrderId === salesId);
+    // 支持按手机号或姓名搜索
+    return this.state.members.filter(
+      m => m.phone.includes(keyword) || m.name.includes(keyword)
+    );
   }
 
-  async createQuote(
-    salesId: string,
-    payload: { validUntil: string; discountRate: number; remarks?: string }
-  ) {
+  async getMember(memberId: string) {
     await delay();
-    const sale = this.state.sales.find((order) => order.id === salesId);
-    const amount = sale ? sale.quantityKg * sale.unitPrice : 0;
-    const line = sale
-      ? {
-          productId: sale.fruit,
-          quantityKg: sale.quantityKg,
-          unitPrice: sale.unitPrice,
-          discountPercent: Math.round(payload.discountRate * 100)
-        }
-      : { productId: "fruit", quantityKg: 100, unitPrice: 20, discountPercent: 5 };
-    const quote: SalesQuote = {
-      id: `quote-${Date.now()}`,
-      salesOrderId: salesId,
-      customerId: sale?.customer || "潜在客户",
-      channel: sale?.channel ?? "渠道",
-      status: "draft",
-      version: (this.state.quotes.filter((item) => item.salesOrderId === salesId).length || 0) + 1,
-      validFrom: new Date().toISOString().slice(0, 10),
-      validTo: payload.validUntil,
-      totalAmount: amount,
-      lines: [line],
-      remarks: payload.remarks,
-      discountRate: payload.discountRate
+    return this.state.members.find(m => m.id === memberId);
+  }
+
+  async createMember(payload: Omit<MemberProfile, "id">) {
+    await delay();
+    const member: MemberProfile = {
+      ...payload,
+      id: `member-${Date.now()}`
     };
-    this.state.quotes.unshift(quote);
+    this.state.members.push(member);
     this.persist();
-    return quote;
-  }
-
-  async updateQuoteStatus(id: string, status: string) {
-    await delay();
-    const target = this.state.quotes.find((quote) => quote.id === id);
-    if (target) {
-      target.status = status as SalesQuote["status"];
-      this.persist();
-    }
-    return target;
+    return member;
   }
 
   async createPurchase(payload: Omit<Purchase, "id"> & { storeId: StoreId }) {
