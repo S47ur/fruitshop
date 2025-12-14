@@ -14,10 +14,6 @@ import java.util.List;
 @Table(name = "users")
 public class User {
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
-    private String id;
-    
-    @Column(unique = true, nullable = false)
     private String username;
     
     @Column(nullable = false)
@@ -31,7 +27,7 @@ public class User {
     private String email;
     
     @ElementCollection(fetch = FetchType.EAGER)
-    @CollectionTable(name = "user_stores", joinColumns = @JoinColumn(name = "user_id"))
+    @CollectionTable(name = "user_stores", joinColumns = @JoinColumn(name = "username"))
     @Column(name = "store_id")
     private List<String> storeIds = new ArrayList<>();
     

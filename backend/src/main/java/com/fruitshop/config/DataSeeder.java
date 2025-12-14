@@ -14,6 +14,9 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
+/**
+ * 数据初始化器 - 在所有环境运行
+ */
 @Slf4j
 @Component
 @RequiredArgsConstructor
