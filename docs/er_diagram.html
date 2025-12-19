@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>水果店进销存系统 - ER图</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+    <style>
+        body {
+            font-family: 'Microsoft YaHei', sans-serif;
+            background: #f5f5f5;
+            padding: 20px;
+            margin: 0;
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        .mermaid {
+            display: flex;
+            justify-content: center;
+        }
+        .tip {
+            text-align: center;
+            color: #666;
+            margin-top: 20px;
+            font-size: 14px;
+        }
+        button {
+            display: block;
+            margin: 20px auto;
+            padding: 10px 30px;
+            font-size: 16px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #45a049;
+        }
+    </style>
+</head>
+<body>
+    <h1>🍎 水果店进销存系统 - 数据库 ER 图</h1>
+    
+    <div class="container">
+        <div class="mermaid">
+erDiagram
+    %% ==================== 用户与门店 ====================
+    USERS ||--o{ USER_STORES : "拥有"
+    STORES ||--o{ USER_STORES : "分配"
+    
+    USERS {
+        string username PK "用户名"
+        string password "密码"
+        string name "姓名"
+        string role "角色"
+        string email "邮箱"
+    }
+    
+    STORES {
+        string id PK "门店ID"
+        string name "名称"
+        string city "城市"
+        string address "地址"
+        string phone "电话"
+    }
+
+    %% ==================== 商品与库存 ====================
+    PRODUCTS ||--o{ INVENTORY : "库存"
+    STORES ||--o{ INVENTORY : "存放"
+    INVENTORY ||--o{ ADJUSTMENTS : "调整"
+    
+    PRODUCTS {
+        string id PK "商品ID"
+        string name "名称"
+        string category "分类"
+        decimal price_base "基准价"
+        string status "状态"
+    }
+    
+    INVENTORY {
+        string id PK "库存ID"
+        string store_id FK "门店"
+        string product_id FK "商品"
+        decimal on_hand_kg "库存量"
+        decimal unit_cost "成本"
+        decimal unit_price "售价"
+        decimal reorder_level "预警线"
+    }
+    
+    ADJUSTMENTS {
+        string id PK "调整ID"
+        string inventory_id FK "库存"
+        string reason "原因"
+        decimal delta_kg "调整量"
+        datetime created_at "时间"
+    }
+
+    %% ==================== 合作伙伴 ====================
+    PARTNERS ||--o{ PURCHASE_ORDERS : "供货"
+    PARTNERS ||--o{ SALES_ORDERS : "购买"
+    
+    PARTNERS {
+        string id PK "伙伴ID"
+        string type "类型"
+        string name "名称"
+        string contact_name "联系人"
+        string phone "电话"
+        int payment_term_days "账期"
+    }
+
+    %% ==================== 采购管理 ====================
+    STORES ||--o{ PURCHASE_ORDERS : "采购"
+    PURCHASE_ORDERS ||--o{ PURCHASE_ORDER_LINES : "明细"
+    
+    PURCHASE_ORDERS {
+        string id PK "采购单ID"
+        string store_id FK "门店"
+        string supplier_id FK "供应商"
+        string status "状态"
+        date expected_date "预计到货"
+    }
+    
+    PURCHASE_ORDER_LINES {
+        bigint id PK "行ID"
+        string order_id FK "采购单"
+        string product_id "商品"
+        decimal quantity_kg "数量"
+        decimal unit_cost "单价"
+    }
+
+    %% ==================== 销售管理 ====================
+    STORES ||--o{ SALES_ORDERS : "销售"
+    SALES_ORDERS ||--o| INVOICES : "发票"
+    
+    SALES_ORDERS {
+        string id PK "销售单ID"
+        string store_id FK "门店"
+        string customer_id FK "客户"
+        date date "日期"
+        decimal quantity_kg "数量"
+        decimal unit_price "单价"
+        string status "状态"
+    }
+    
+    INVOICES {
+        string id PK "发票ID"
+        string store_id FK "门店"
+        string order_id FK "订单"
+        decimal amount "金额"
+        string status "状态"
+    }
+
+    %% ==================== 会员管理 ====================
+    MEMBERS {
+        string id PK "会员ID"
+        string name "姓名"
+        string phone "电话"
+        decimal balance "余额"
+        decimal points "积分"
+        string tier "等级"
+    }
+
+    %% ==================== 系统配置 ====================
+    ROLE_MATRIX ||--o{ ROLE_PERMISSIONS : "权限"
+    
+    ROLE_MATRIX {
+        string role PK "角色"
+        string label "名称"
+    }
+    
+    SYSTEM_PARAMETERS {
+        string param_key PK "参数键"
+        string param_value "参数值"
+        string description "描述"
+    }
+    
+    AUDIT_LOGS {
+        string id PK "日志ID"
+        string actor "操作人"
+        string action "操作"
+        string entity "实体"
+        datetime timestamp "时间"
+    }
+        </div>
+    </div>
+    
+    <button onclick="saveSVG()">💾 保存为 SVG 图片</button>
+    
+    <p class="tip">提示：点击按钮保存 SVG，或右键图表选择"另存为图片"</p>
+
+    <script>
+        mermaid.initialize({ 
+            startOnLoad: true,
+            theme: 'default',
+            er: {
+                layoutDirection: 'TB',
+                minEntityWidth: 100,
+                minEntityHeight: 75,
+                entityPadding: 15,
+                useMaxWidth: false
+            }
+        });
+        
+        function saveSVG() {
+            const svg = document.querySelector('.mermaid svg');
+            if (svg) {
+                const svgData = new XMLSerializer().serializeToString(svg);
+                const blob = new Blob([svgData], {type: 'image/svg+xml'});
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'fruitshop_er_diagram.svg';
+                a.click();
+                URL.revokeObjectURL(url);
+            }
+        }
+    </script>
+</body>
+</html>
