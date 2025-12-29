@@ -1,3 +1,5 @@
+###仓库地址:https://github.com/S47ur/fruitshop
+
 # 🍎 水果店进销存管理系统 (FruitShop)
 
 <p align="center">
